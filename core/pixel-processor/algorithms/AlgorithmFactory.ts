@@ -1,15 +1,15 @@
-// core/pixel-processor/algorithms/AlgorithmFactory.ts
+// core/pixel-processor/algorithms/AlgorithmFactory.ts - Version corrigée
 import { IPixelAlgorithm } from '@shared/interfaces';
 import { PixelAlgorithm } from '@shared/types/pixelart';
+import { NearestNeighbor } from './NearestNeighbor';
 import { BilinearPixel } from './BilinearPixel';
-import {NearestNeighbor} from "@core/pixel-processor/algorithms/NearestNeighbor.ts";
 
 export class AlgorithmFactory {
+    // Correction: utiliser IPixelAlgorithm au lieu de class constructors spécifiques
     private static algorithms: Map<PixelAlgorithm, new () => IPixelAlgorithm> = new Map([
         ['nearest-neighbor', NearestNeighbor],
         ['bilinear', BilinearPixel],
-        // Ajouter d'autres algorithmes ici
-    ]);
+    ] as const);
 
     static create(algorithm: PixelAlgorithm): IPixelAlgorithm {
         const AlgorithmClass = this.algorithms.get(algorithm);

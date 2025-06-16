@@ -1,6 +1,6 @@
-// ui/components/index.ts
+// ui/components/index.ts - Version corrigée
 export { ModelViewer3D } from './viewers/ModelViewer3D/ModelViewer3D';
-export { PixelPreview } from './viewers/PixelPreview/PixelPreview';
+export { PixelPreview } from './viewers/ModelViewer3D/PixelPreview/PixelPreview'; // Chemin corrigé
 export { FileUpload } from './controls/FileUpload/FileUpload';
 export { PresetSelector } from './controls/PresetSelector/PresetSelector';
 export { SettingsPanel } from './controls/SettingsPanel/SettingsPanel';

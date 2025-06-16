@@ -1,7 +1,6 @@
 // core/model-loader/__tests__/ModelLoader.test.ts
 import { ModelLoader } from '../ModelLoader';
-import { Model3D, ValidationResult } from '@shared/types/models';
-import { ModelValidator } from '@shared/utils';
+import { Model3D } from '@shared/types/models';
 
 // Mock implementation for testing
 class MockModelLoader extends ModelLoader {
@@ -9,7 +8,7 @@ class MockModelLoader extends ModelLoader {
         super('Mock');
     }
 
-    async loadModel(file: File): Promise<Model3D> {
+    async loadModel(_file: File): Promise<Model3D> {
         return {
             id: 'test-model',
             meshes: [{

@@ -8,7 +8,7 @@ export function useModelLoader() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<Error | null>(null);
 
-    const loadModel = useCallback(async (file: File) => {
+    const loadModel = useCallback(async (file: File): Promise<Model3D | null> => {
         setIsLoading(true);
         setError(null);
 
@@ -16,9 +16,11 @@ export function useModelLoader() {
             const loader = ModelLoaderFactory.create(file.name);
             const loadedModel = await loader.loadModel(file);
             setModel(loadedModel);
+            return loadedModel; // S'assurer de retourner le modèle
         } catch (err) {
             setError(err as Error);
             setModel(null);
+            return null; // Retourner null en cas d'erreur
         } finally {
             setIsLoading(false);
         }

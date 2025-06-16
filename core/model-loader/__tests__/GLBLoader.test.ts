@@ -14,7 +14,7 @@ jest.mock('three', () => ({
 
 jest.mock('three/examples/jsm/loaders/GLTFLoader', () => ({
     GLTFLoader: jest.fn().mockImplementation(() => ({
-        parse: jest.fn((buffer, path, onLoad, onError) => {
+        parse: jest.fn((_buffer, _path, onLoad, _onError) => {
             // Simulate successful GLTF loading
             const mockScene = new THREE.Scene();
             const mockMesh = new THREE.Mesh(
@@ -68,7 +68,7 @@ describe('GLBLoader', () => {
             const file = new File(['invalid content'], 'test.glb');
 
             // Mock parse to fail
-            const mockParse = jest.fn((buffer, path, onLoad, onError) => {
+            const mockParse = jest.fn((_buffer, _path, _onLoad, onError) => {
                 onError(new Error('Invalid GLB file'));
             });
 

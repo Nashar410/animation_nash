@@ -231,7 +231,7 @@ export class RenderPipeline {
         return result;
     }
 
-    private calculateRenderSize(model: Model3D, camera: Camera): { width: number; height: number } {
+    private calculateRenderSize(model: Model3D, _camera: Camera): { width: number; height: number } {
         // Calculate optimal render size based on model bounds and camera
         const aspectRatio = model.bounds.size.x / model.bounds.size.y;
         const baseSize = 512;

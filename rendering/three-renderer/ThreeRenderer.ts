@@ -172,7 +172,9 @@ export class ThreeRenderer implements IRenderer {
         }
 
         if (settings.antialias !== undefined) {
-            this.renderer.antialias = settings.antialias;
+            // Three.js WebGLRenderer antialias is read-only after creation
+            // Il faut recréer le renderer si on veut changer l'antialias
+            console.warn('Antialias setting cannot be changed after renderer creation');
         }
 
         if (settings.shadows !== undefined) {

@@ -37,6 +37,20 @@ describe('PresetFactory', () => {
                             far: 100,
                             type: 'perspective',
                         },
+                        // Propriétés manquantes ajoutées :
+                        renderSettings: {
+                            backgroundColor: { r: 0, g: 0, b: 0, a: 255 },
+                            antialias: false,
+                            shadows: false,
+                        },
+                        pixelSettings: {
+                            targetSize: { width: 32, height: 32 },
+                            pixelScale: 2,
+                            dithering: false,
+                            ditheringStrength: 0,
+                            contrastBoost: 0,
+                            brightnessAdjust: 0,
+                        },
                     });
                 }
             }

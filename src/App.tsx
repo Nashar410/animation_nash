@@ -43,7 +43,7 @@ function AppContent() {
   // Handle file upload
   const handleFileSelect = useCallback(async (file: File) => {
     const loadedModel = await loadModel(file);
-    if (loadedModel) {
+    if (loadedModel !== null) { // Vérification explicite contre null
       setModel(loadedModel);
     }
   }, [loadModel, setModel]);

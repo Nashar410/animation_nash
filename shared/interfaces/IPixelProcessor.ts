@@ -1,10 +1,10 @@
-
-// shared/interfaces/IPixelProcessor.ts
+// shared/interfaces/IPixelProcessor.ts - Version corrigée
 import {
     ProcessedFrame,
     PixelSettings,
     PixelAlgorithm
-} from '../types/pixelart';
+} from '@shared/types';
+import { IPixelAlgorithm } from './IAlgorithm';
 
 export interface IPixelProcessor {
     /**
@@ -26,9 +26,9 @@ export interface IPixelProcessor {
     getAlgorithm(): PixelAlgorithm;
 
     /**
-     * Change l'algorithme de traitement
+     * Change l'algorithme de traitement - CORRIGÉ
      */
-    setAlgorithm(algorithm: PixelAlgorithm): void;
+    setAlgorithm(algorithm: IPixelAlgorithm): void;
 
     /**
      * Libère les ressources

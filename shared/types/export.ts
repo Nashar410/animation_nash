@@ -1,5 +1,6 @@
+// shared/types/export.ts - Version corrigée
+import { Size } from './rendering'; // Import manquant ajouté
 
-// shared/types/export.ts
 export interface Layout {
     type: 'grid' | 'linear' | 'packed';
     columns?: number;
