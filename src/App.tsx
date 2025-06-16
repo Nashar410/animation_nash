@@ -1,5 +1,5 @@
-// src/App.tsx - Version simplifiée qui fonctionne
-import { useState, useCallback, useEffect, useMemo } from 'react';
+// src/App.tsx - Solution avec un seul renderer partagé
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { AppProvider, useAppContext } from '../ui/contexts/AppContext';
 import {
   ModelViewer3D,
@@ -11,7 +11,6 @@ import {
 import { useModelLoader } from "@ui/hooks/useModelLoader";
 import { usePixelProcessor } from "@ui/hooks/usePixelProcessor";
 import { useExporter } from "@ui/hooks/useExporter";
-import { ThreeRenderer } from '@rendering/three-renderer';
 import {
   Download,
   Settings,
@@ -35,7 +34,6 @@ function AppContent() {
     cameraPresets,
     selectedPresetId,
     applyPreset,
-    renderSettings,
     pixelSettings,
     setPixelSettings,
     exportSettings,
@@ -48,10 +46,13 @@ function AppContent() {
   const { processImage, isProcessing } = usePixelProcessor();
   const { exportFrames, isExporting } = useExporter();
 
-  // CORRECTION: Retour à useMemo mais avec une clé stable
-  const renderer = useMemo(() => new ThreeRenderer(), []);
   const [activeTab, setActiveTab] = useState<'model' | 'settings'>('model');
   const [showGrid, setShowGrid] = useState(true);
+
+  // CORRECTION: Référence vers le ModelViewer3D pour capturer son rendu
+  const modelViewerRef = useRef<{
+    captureFrame: () => ImageData | null;
+  } | null>(null);
 
   // Handle file upload
   const handleFileSelect = useCallback(async (file: File) => {
@@ -61,27 +62,34 @@ function AppContent() {
     }
   }, [loadModel, setModel]);
 
-  // Process current view - Version simple qui fonctionne
+  // CORRECTION: Process en utilisant le renderer du ModelViewer3D
   const handleProcess = useCallback(async () => {
-    if (!model) return;
+    if (!model || !modelViewerRef.current) {
+      console.warn('⚠️ Missing model or model viewer');
+      return;
+    }
 
     try {
-      const canvas = document.createElement('canvas');
-      canvas.width = 512;
-      canvas.height = 512;
+      console.log('🎨 Capturing frame from ModelViewer3D...');
 
-      renderer.initialize(canvas);
-      renderer.updateSettings(renderSettings);
+      // Capturer l'image directement du ModelViewer3D
+      const imageData = modelViewerRef.current.captureFrame();
+      if (!imageData) {
+        console.error('❌ Failed to capture frame');
+        return;
+      }
 
-      const result = renderer.render(model, camera);
-      const processed = await processImage(result.image, pixelSettings);
+      console.log('🖼️ Frame captured, processing...');
+      const processed = await processImage(imageData, pixelSettings);
+
       if (processed) {
         setProcessedFrames([processed]);
+        console.log('✅ Frame processed successfully');
       }
     } catch (error) {
-      console.error('Processing error:', error);
+      console.error('❌ Processing error:', error);
     }
-  }, [model, camera, renderSettings, pixelSettings, renderer, processImage, setProcessedFrames]);
+  }, [model, processImage, pixelSettings, setProcessedFrames]);
 
   // Export spritesheet
   const handleExport = useCallback(async () => {
@@ -89,23 +97,22 @@ function AppContent() {
     await exportFrames(processedFrames, exportSettings);
   }, [processedFrames, exportSettings, exportFrames]);
 
-  // Auto-process avec debouncing simple
+  // Auto-process quand le modèle ou les settings changent
   useEffect(() => {
     if (!model) return;
 
     const timeoutId = setTimeout(() => {
       handleProcess();
-    }, 100);
+    }, 800); // Délai pour laisser le temps au ModelViewer de se mettre à jour
 
     return () => clearTimeout(timeoutId);
-  }, [model, pixelSettings.targetSize, pixelSettings.colorPalette, handleProcess]);
+  }, [model, pixelSettings.targetSize, pixelSettings.colorPalette, selectedPresetId]);
 
-  // Cleanup du renderer
-  useEffect(() => {
-    return () => {
-      renderer.dispose();
-    };
-  }, [renderer]);
+  // Process manuel sur changement de preset
+  const handlePresetChange = useCallback((presetId: string) => {
+    applyPreset(presetId);
+    // Le process se fera automatiquement via le useEffect ci-dessus
+  }, [applyPreset]);
 
   return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-pink-900">
@@ -148,7 +155,6 @@ function AppContent() {
                     <Grid3x3 className="w-5 h-5" />
                   </button>
 
-                  {/* Grid status indicator - only show when no model */}
                   {!model && (
                       <div className="text-xs text-white/60">
                         Grid: {showGrid ? 'ON' : 'OFF'}
@@ -296,7 +302,7 @@ function AppContent() {
                                 <PresetSelector
                                     presets={cameraPresets}
                                     selectedPresetId={selectedPresetId}
-                                    onPresetSelect={applyPreset}
+                                    onPresetSelect={handlePresetChange}
                                 />
                               </div>
 
@@ -333,6 +339,7 @@ function AppContent() {
                       </h2>
                       <div className="rounded-xl overflow-hidden border border-white/20">
                         <ModelViewer3D
+                            ref={modelViewerRef}
                             model={model}
                             camera={camera}
                             width={400}

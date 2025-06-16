@@ -1,4 +1,4 @@
-// rendering/three-renderer/ThreeRenderer.ts
+// rendering/three-renderer/ThreeRenderer.ts - Version corrigée
 import * as THREE from 'three';
 import { IRenderer } from '@shared/interfaces';
 import { Model3D, Camera, RenderResult, RenderSettings, Light } from '@shared/types';
@@ -13,6 +13,7 @@ export class ThreeRenderer implements IRenderer {
     private model: THREE.Group | null = null;
     private mixer: THREE.AnimationMixer | null = null;
     private settings: RenderSettings;
+    private _isInitialized = false; // AJOUT: Flag pour éviter la réinitialisation
 
     constructor() {
         this.logger = new Logger('ThreeRenderer');
@@ -55,7 +56,17 @@ export class ThreeRenderer implements IRenderer {
         };
     }
 
+    // AJOUT: Getter pour vérifier l'initialisation
+    get isInitialized(): boolean {
+        return this._isInitialized;
+    }
+
     initialize(canvas: HTMLCanvasElement): void {
+        if (this._isInitialized) {
+            this.logger.debug('Renderer already initialized, skipping...');
+            return;
+        }
+
         this.logger.info('Initializing Three.js renderer');
         this.canvas = canvas;
 
@@ -65,6 +76,8 @@ export class ThreeRenderer implements IRenderer {
 
         // Setup default lighting
         this.setupLights(this.settings.lights);
+
+        this._isInitialized = true;
     }
 
     render(model: Model3D, camera: Camera, settings?: Partial<RenderSettings>): RenderResult {
@@ -171,12 +184,6 @@ export class ThreeRenderer implements IRenderer {
             );
         }
 
-        if (settings.antialias !== undefined) {
-            // Three.js WebGLRenderer antialias is read-only after creation
-            // Il faut recréer le renderer si on veut changer l'antialias
-            console.warn('Antialias setting cannot be changed after renderer creation');
-        }
-
         if (settings.shadows !== undefined) {
             this.renderer.shadowMap.enabled = settings.shadows;
         }
@@ -195,6 +202,7 @@ export class ThreeRenderer implements IRenderer {
         }
 
         this.renderer.dispose();
+        this._isInitialized = false;
     }
 
     private updateCamera(camera: Camera): void {
@@ -208,8 +216,9 @@ export class ThreeRenderer implements IRenderer {
                 );
             } else {
                 this.camera.fov = camera.fov;
-                this.camera.near = camera.near;
-                this.camera.far = camera.far;
+                // CORRECTION: Limites de caméra plus adaptées
+                this.camera.near = Math.max(0.01, camera.near);
+                this.camera.far = Math.min(10000, camera.far);
                 this.camera.updateProjectionMatrix();
             }
         } else {
@@ -222,14 +231,16 @@ export class ThreeRenderer implements IRenderer {
                     size * aspect / 2,
                     size / 2,
                     -size / 2,
-                    camera.near,
-                    camera.far
+                    Math.max(0.01, camera.near),
+                    Math.min(10000, camera.far)
                 );
             } else {
                 this.camera.left = -size * aspect / 2;
                 this.camera.right = size * aspect / 2;
                 this.camera.top = size / 2;
                 this.camera.bottom = -size / 2;
+                this.camera.near = Math.max(0.01, camera.near);
+                this.camera.far = Math.min(10000, camera.far);
                 this.camera.updateProjectionMatrix();
             }
         }
@@ -250,8 +261,9 @@ export class ThreeRenderer implements IRenderer {
         this.model = new THREE.Group();
         this.model.userData.modelId = model.id;
 
-        // Create materials map
+        // CORRECTION: Meilleure gestion des matériaux et textures
         const materials = new Map<string, THREE.Material>();
+        const textureLoader = new THREE.TextureLoader();
 
         for (const mat of model.materials) {
             const material = new THREE.MeshStandardMaterial({
@@ -259,8 +271,27 @@ export class ThreeRenderer implements IRenderer {
                 opacity: mat.opacity,
                 transparent: mat.opacity < 1,
                 metalness: mat.metalness || 0,
-                roughness: mat.roughness || 1
+                roughness: mat.roughness || 0.8,
             });
+
+            // CORRECTION: Chargement asynchrone des textures
+            if (mat.texture && mat.texture.url) {
+                textureLoader.load(
+                    mat.texture.url,
+                    (texture) => {
+                        texture.flipY = false; // Important pour les modèles GLTF
+                        texture.wrapS = THREE.RepeatWrapping;
+                        texture.wrapT = THREE.RepeatWrapping;
+                        material.map = texture;
+                        material.needsUpdate = true;
+                        this.logger.debug(`Texture loaded for material ${mat.id}`);
+                    },
+                    undefined,
+                    (error) => {
+                        this.logger.warn(`Failed to load texture for material ${mat.id}:`, error);
+                    }
+                );
+            }
 
             materials.set(mat.id, material);
         }
@@ -278,8 +309,13 @@ export class ThreeRenderer implements IRenderer {
                 geometry.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
             }
 
+            // CORRECTION: Calcul automatique des normales si nécessaires
+            if (mesh.normals.length === 0) {
+                geometry.computeVertexNormals();
+            }
+
             // Get material
-            const material = mesh.materialId ? materials.get(mesh.materialId) : new THREE.MeshStandardMaterial();
+            const material = mesh.materialId ? materials.get(mesh.materialId) : new THREE.MeshStandardMaterial({ color: 0x888888 });
 
             // Create mesh
             const threeMesh = new THREE.Mesh(geometry, material || new THREE.MeshStandardMaterial());
@@ -288,24 +324,44 @@ export class ThreeRenderer implements IRenderer {
             this.model.add(threeMesh);
         }
 
-        // Center model
+        // CORRECTION: Centrage et mise à l'échelle intelligente
         const box = new THREE.Box3().setFromObject(this.model);
         const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+
+        // Centrer le modèle
         this.model.position.sub(center);
+
+        // CORRECTION: Mise à l'échelle adaptative
+        const maxDimension = Math.max(size.x, size.y, size.z);
+        if (maxDimension > 0) {
+            // Adapter la taille pour que le modèle soit visible
+            const targetSize = 8; // Taille cible
+            if (maxDimension > targetSize || maxDimension < targetSize * 0.1) {
+                const scale = targetSize / maxDimension;
+                this.model.scale.setScalar(scale);
+                this.logger.debug(`Model scaled by factor: ${scale}`);
+            }
+        }
 
         // Add to scene
         this.scene.add(this.model);
 
-        // Setup animation mixer if animations exist
+        // CORRECTION: Setup animation mixer avec les clips GLTF
         if (model.animations.length > 0) {
             this.mixer = new THREE.AnimationMixer(this.model);
 
-            // Store clips for later use
-            this.model.userData.clips = model.animations.map(anim => {
+            // Convertir les animations du modèle en clips Three.js
+            const clips: THREE.AnimationClip[] = [];
+            for (const anim of model.animations) {
+                // Pour une vraie implémentation, il faudrait convertir les channels
+                // En attendant, on crée un clip vide pour éviter les erreurs
                 const clip = new THREE.AnimationClip(anim.name, anim.duration, []);
-                // Note: In a real implementation, we'd need to convert animation channels to Three.js tracks
-                return clip;
-            });
+                clips.push(clip);
+            }
+
+            this.model.userData.clips = clips;
+            this.logger.info(`Animation mixer setup with ${clips.length} clips`);
         }
     }
 
@@ -334,6 +390,12 @@ export class ThreeRenderer implements IRenderer {
                     if (light.position) {
                         threeLight.position.set(light.position.x, light.position.y, light.position.z);
                     }
+                    // CORRECTION: Améliorer les ombres
+                    if (this.settings.shadows) {
+                        threeLight.castShadow = true;
+                        (threeLight as THREE.DirectionalLight).shadow.mapSize.width = 2048;
+                        (threeLight as THREE.DirectionalLight).shadow.mapSize.height = 2048;
+                    }
                     break;
 
                 case 'point':
@@ -343,6 +405,9 @@ export class ThreeRenderer implements IRenderer {
                     );
                     if (light.position) {
                         threeLight.position.set(light.position.x, light.position.y, light.position.z);
+                    }
+                    if (this.settings.shadows) {
+                        threeLight.castShadow = true;
                     }
                     break;
 
@@ -382,11 +447,33 @@ export class ThreeRenderer implements IRenderer {
         return imageData;
     }
 
+
     private disposeObject(object: THREE.Object3D): void {
         if (object instanceof THREE.Mesh) {
             object.geometry.dispose();
             if (object.material instanceof THREE.Material) {
                 object.material.dispose();
+                // CORRECTION: Nettoyer les textures avec typage correct
+                if (object.material instanceof THREE.MeshStandardMaterial && object.material.map) {
+                    object.material.map.dispose();
+                }
+                // Nettoyer d'autres textures possibles
+                if (object.material instanceof THREE.MeshStandardMaterial) {
+                    if (object.material.normalMap) object.material.normalMap.dispose();
+                    if (object.material.roughnessMap) object.material.roughnessMap.dispose();
+                    if (object.material.metalnessMap) object.material.metalnessMap.dispose();
+                }
+            }
+            // Gérer les matériaux multiples
+            if (Array.isArray(object.material)) {
+                object.material.forEach(mat => {
+                    if (mat instanceof THREE.Material) {
+                        mat.dispose();
+                        if (mat instanceof THREE.MeshStandardMaterial && mat.map) {
+                            mat.map.dispose();
+                        }
+                    }
+                });
             }
         }
 
