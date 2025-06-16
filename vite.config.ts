@@ -13,7 +13,10 @@ export default defineConfig({
       '@workers': path.resolve(__dirname, './workers'),
     },
   },
-  worker: {
-    format: 'es'
-  }
+  optimizeDeps: {
+    include: ['three'],
+  },
+  build: {
+    sourcemap: true,
+  },
 })
