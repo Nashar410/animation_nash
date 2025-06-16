@@ -14,7 +14,7 @@ export class DIContainer implements IContainer {
             if (!this.singletons.has(token)) {
                 this.singletons.set(token, factory());
             }
-            return this.singletons.get(token);
+            return this.singletons.get(token) as T;
         });
     }
 
@@ -23,7 +23,7 @@ export class DIContainer implements IContainer {
         if (!factory) {
             throw new Error(`Service not found: ${token.toString()}`);
         }
-        return factory();
+        return factory() as T;
     }
 
     has(token: symbol): boolean {
