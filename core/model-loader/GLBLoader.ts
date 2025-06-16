@@ -1,5 +1,5 @@
+// core/model-loader/GLBLoader.ts - Version finale corrigée
 
-// core/model-loader/GLBLoader.ts
 import * as THREE from 'three';
 import { ModelLoader } from './ModelLoader';
 import {
@@ -14,8 +14,8 @@ import {
     Quaternion,
     Texture
 } from '@shared/types/models';
-import {generateId} from "@shared/utils/id.ts";
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { generateId } from "@shared/utils/id.ts";
+import { GLTFLoader, GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 export class GLBLoader extends ModelLoader {
     private loader: GLTFLoader;
@@ -51,25 +51,27 @@ export class GLBLoader extends ModelLoader {
         }
     }
 
-    private loadGLTF(buffer: ArrayBuffer): Promise<GLTFData> {
+    // CORRECTION: Utiliser l'interface GLTF officielle
+    private loadGLTF(buffer: ArrayBuffer): Promise<GLTF> {
         return new Promise((resolve, reject) => {
             this.loader.parse(
                 buffer,
                 '',
-                (gltf: any) => resolve(gltf),
-                (error: any) => reject(error)
+                (gltf: GLTF) => resolve(gltf),
+                (error: ErrorEvent) => reject(error)
             );
         });
     }
 
-    private convertGLTFToModel(gltf: GLTFData, _filename: string): Model3D {
+    // CORRECTION: Paramètre gltf typé comme GLTF
+    private convertGLTFToModel(gltf: GLTF, _filename: string): Model3D {
         const modelId = generateId('model');
         const meshes: Mesh[] = [];
         const materials: Material[] = [];
         const animations: Animation[] = [];
         const textures = new Map<THREE.Texture, Texture>();
 
-        // Extract textures
+        // Extract textures - gltf.scene est maintenant correctement typé
         gltf.scene.traverse((node: THREE.Object3D) => {
             if (node instanceof THREE.Mesh) {
                 const material = node.material as THREE.MeshStandardMaterial;
@@ -143,7 +145,8 @@ export class GLBLoader extends ModelLoader {
             indices: indices instanceof Uint16Array || indices instanceof Uint32Array
                 ? indices
                 : new Uint32Array(indices),
-            materialId: (threeMesh.material as any).uuid,
+            // CORRECTION: Cast correct vers MeshStandardMaterial
+            materialId: (threeMesh.material as THREE.MeshStandardMaterial).uuid,
         };
     }
 
@@ -238,8 +241,9 @@ export class GLBLoader extends ModelLoader {
         }
     }
 
-    private calculateBounds(scene: THREE.Scene): BoundingBox {
-        const box = new THREE.Box3().setFromObject(scene);
+    // CORRECTION: Paramètre typé comme Group (pas Scene)
+    private calculateBounds(sceneGroup: THREE.Group): BoundingBox {
+        const box = new THREE.Box3().setFromObject(sceneGroup);
 
         return {
             min: {
@@ -277,14 +281,4 @@ export class GLBLoader extends ModelLoader {
         super.dispose();
         // Three.js loader doesn't need explicit disposal
     }
-}
-
-
-interface GLTFData {
-    scene: THREE.Scene;
-    animations: THREE.AnimationClip[];
-    asset?: {
-        generator?: string;
-        version?: string;
-    };
 }

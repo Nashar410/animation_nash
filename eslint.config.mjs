@@ -119,5 +119,11 @@ export default defineConfig([
             "@typescript-eslint/no-unused-vars": "off",
             "@typescript-eslint/no-explicit-any": "off",
         }
-    }
+    },
+    {
+        files: ["core/model-loader/**"],
+        rules: {
+            "@typescript-eslint/no-explicit-any": "off", // APIs Three.js utilisent any
+        }
+    },
 ]);
