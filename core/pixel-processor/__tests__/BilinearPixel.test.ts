@@ -23,7 +23,7 @@ describe('BilinearPixel', () => {
         );
 
         settings = {
-            targetSize: { width: 4, height: 4 },
+            targetSize: {width: 4, height: 4},
             pixelScale: 1,
             dithering: false,
             ditheringStrength: 0,
@@ -49,3 +49,5 @@ describe('BilinearPixel', () => {
         expect(centerValue).toBeGreaterThan(0);
         expect(centerValue).toBeLessThan(255);
     })
+
+});

@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { Model3D, Camera } from '@shared/types';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import {OrbitControls} from "three/examples/jsm/controls/OrbitControls";
 
 interface ModelViewer3DProps {
     model: Model3D | null;

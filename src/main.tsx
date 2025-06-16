@@ -1,11 +1,11 @@
-// 2. Fix pour src/main.tsx - Utiliser un type plus spécifique au lieu de any
+// src/main.tsx - Version corrigée
 import React from 'react'
+import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
 
 // Ensure Three.js imports work
 import * as THREE from 'three'
-import {ReactDOM} from "react/ts5.0/v18";
 
 // Type window extension properly
 declare global {

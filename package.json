@@ -3,8 +3,18 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "lint:report": "eslint 'src/**/*.{ts,tsx,js,jsx}' -f json -o reports/eslint-report.json"
+    "lint": "eslint 'src/**/*.{ts,tsx,js,jsx}' 'core/**/*.{ts,tsx}' 'ui/**/*.{ts,tsx}' 'shared/**/*.{ts,tsx}'",
+    "lint:fix": "npm run lint -- --fix",
+    "lint:report": "npm run lint -- -f json -o reports/eslint-report.json",
+    "type-check": "tsc --noEmit  > reports/typechec.txt 2>&1",
+    "validate": "npm run type-check && npm run lint",
+    "validate:fix": "npm run type-check && npm run lint:fix",
+    "dev": "vite",
+    "build": "npm run validate && vite build",
+    "preview": "vite preview",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "keywords": [],
   "author": "",
@@ -28,6 +38,7 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@types/jest": "^30.0.0",
+    "@types/react-dom": "^19.1.6",
     "@typescript-eslint/eslint-plugin": "^8.34.0",
     "@typescript-eslint/parser": "^8.34.0",
     "autoprefixer": "^10.4.21",

@@ -1,6 +1,4 @@
-// 3. Fix pour src/three.d.ts - Remplacer les types vides {}
-import {AnimationClip, LoadingManager, Scene} from "three";
-
+// src/three.d.ts - Version corrigée
 declare module 'three/examples/jsm/controls/OrbitControls' {
   import { Camera, EventDispatcher, MOUSE, Vector3 } from 'three';
 
@@ -54,19 +52,12 @@ declare module 'three/examples/jsm/controls/OrbitControls' {
     mouseButtons: { LEFT: MOUSE; MIDDLE: MOUSE; RIGHT: MOUSE };
 
     update(): void;
-
     saveState(): void;
-
     reset(): void;
-
     dispose(): void;
-
     getPolarAngle(): number;
-
     getAzimuthalAngle(): number;
-
     listenToKeyEvents(domElement: HTMLElement): void;
-
     stopListenToKeyEvents(): void;
   }
 }

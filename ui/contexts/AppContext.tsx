@@ -1,4 +1,4 @@
-// ui/contexts/AppContext.tsx
+// ui/contexts/AppContext.tsx - Version corrigée avec imports
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import {
     Model3D,

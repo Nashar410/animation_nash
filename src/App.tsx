@@ -1,4 +1,4 @@
-// src/App.tsx (version corrigée - sans le CSS à la fin)
+// src/App.tsx - Version entièrement corrigée
 import { useState, useCallback, useEffect } from 'react';
 import { AppProvider, useAppContext } from '../ui/contexts/AppContext';
 import {
@@ -33,7 +33,7 @@ function AppContent() {
   } = useAppContext();
 
   const { loadModel } = useModelLoader();
-  const { processImage, processedFrame, isProcessing } = usePixelProcessor();
+  const { processImage, isProcessing } = usePixelProcessor();
   const { exportFrames, isExporting } = useExporter();
 
   const [renderer] = useState(() => new ThreeRenderer());
@@ -48,7 +48,7 @@ function AppContent() {
     }
   }, [loadModel, setModel]);
 
-  // Process current view
+  // Process current view - useCallback avec toutes les dépendances
   const handleProcess = useCallback(async () => {
     if (!model) return;
 
@@ -78,12 +78,12 @@ function AppContent() {
     await exportFrames(processedFrames, exportSettings);
   }, [processedFrames, exportSettings, exportFrames]);
 
-  // Auto-process on settings change
+  // Auto-process on settings change - Dépendances corrigées
   useEffect(() => {
-    if (model && processedFrame) {
+    if (model) {
       handleProcess();
     }
-  }, [pixelSettings.targetSize, pixelSettings.colorPalette]);
+  }, [pixelSettings.targetSize, pixelSettings.colorPalette, handleProcess]);
 
   return (
       <div className="min-h-screen bg-gray-900 text-white">
@@ -250,4 +250,3 @@ function App() {
 }
 
 export default App;
-

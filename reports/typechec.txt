@@ -1,0 +1,40 @@
+core/camera-system/__tests__/CameraManager.test.ts(4,26): error TS2307: Cannot find module '@shared/events' or its corresponding type declarations.
+core/camera-system/__tests__/PresetFactory.test.ts(28,27): error TS2345: Argument of type '{ id: string; name: string; description: string; camera: { position: { x: number; y: number; z: number; }; rotation: { x: number; y: number; z: number; w: number; }; fov: number; near: number; far: number; type: "perspective"; }; }' is not assignable to parameter of type 'CameraPreset'.
+  Type '{ id: string; name: string; description: string; camera: { position: { x: number; y: number; z: number; }; rotation: { x: number; y: number; z: number; w: number; }; fov: number; near: number; far: number; type: "perspective"; }; }' is missing the following properties from type 'CameraPreset': renderSettings, pixelSettings
+core/model-loader/__tests__/GLBLoader.test.ts(17,25): error TS6133: 'buffer' is declared but its value is never read.
+core/model-loader/__tests__/GLBLoader.test.ts(17,33): error TS6133: 'path' is declared but its value is never read.
+core/model-loader/__tests__/GLBLoader.test.ts(17,47): error TS6133: 'onError' is declared but its value is never read.
+core/model-loader/__tests__/GLBLoader.test.ts(71,40): error TS6133: 'buffer' is declared but its value is never read.
+core/model-loader/__tests__/GLBLoader.test.ts(71,48): error TS6133: 'path' is declared but its value is never read.
+core/model-loader/__tests__/GLBLoader.test.ts(71,54): error TS6133: 'onLoad' is declared but its value is never read.
+core/model-loader/__tests__/ModelLoader.test.ts(3,19): error TS6133: 'ValidationResult' is declared but its value is never read.
+core/model-loader/__tests__/ModelLoader.test.ts(4,1): error TS6133: 'ModelValidator' is declared but its value is never read.
+core/model-loader/__tests__/ModelLoader.test.ts(4,32): error TS2307: Cannot find module '@shared/utils' or its corresponding type declarations.
+core/model-loader/__tests__/ModelLoader.test.ts(12,21): error TS6133: 'file' is declared but its value is never read.
+core/pipeline/RenderPipeline.ts(234,49): error TS6133: 'camera' is declared but its value is never read.
+core/pixel-processor/PixelProcessor.ts(68,5): error TS2416: Property 'setAlgorithm' in type 'PixelProcessor' is not assignable to the same property in base type 'IPixelProcessor'.
+  Type '(algorithm: IPixelAlgorithm) => void' is not assignable to type '(algorithm: PixelAlgorithm) => void'.
+    Types of parameters 'algorithm' and 'algorithm' are incompatible.
+      Type 'string' is not assignable to type 'IPixelAlgorithm'.
+        Type 'string' is not assignable to type 'IPixelAlgorithm'.
+core/pixel-processor/algorithms/AlgorithmFactory.ts(8,85): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(iterable?: Iterable<readonly ["nearest-neighbor" | "bilinear", typeof NearestNeighbor]> | null | undefined): Map<"nearest-neighbor" | "bilinear", typeof NearestNeighbor>', gave the following error.
+    Argument of type '(["nearest-neighbor", typeof NearestNeighbor] | ["bilinear", typeof BilinearPixel])[]' is not assignable to parameter of type 'Iterable<readonly ["nearest-neighbor" | "bilinear", typeof NearestNeighbor]>'.
+      The types returned by '[Symbol.iterator]().next(...)' are incompatible between these types.
+        Type 'IteratorResult<["nearest-neighbor", typeof NearestNeighbor] | ["bilinear", typeof BilinearPixel], undefined>' is not assignable to type 'IteratorResult<readonly ["nearest-neighbor" | "bilinear", typeof NearestNeighbor], any>'.
+          Type 'IteratorYieldResult<["nearest-neighbor", typeof NearestNeighbor] | ["bilinear", typeof BilinearPixel]>' is not assignable to type 'IteratorResult<readonly ["nearest-neighbor" | "bilinear", typeof NearestNeighbor], any>'.
+            Type 'IteratorYieldResult<["nearest-neighbor", typeof NearestNeighbor] | ["bilinear", typeof BilinearPixel]>' is not assignable to type 'IteratorYieldResult<readonly ["nearest-neighbor" | "bilinear", typeof NearestNeighbor]>'.
+              Type '["nearest-neighbor", typeof NearestNeighbor] | ["bilinear", typeof BilinearPixel]' is not assignable to type 'readonly ["nearest-neighbor" | "bilinear", typeof NearestNeighbor]'.
+                Type '["bilinear", typeof BilinearPixel]' is not assignable to type 'readonly ["nearest-neighbor" | "bilinear", typeof NearestNeighbor]'.
+                  Type at position 1 in source is not compatible with type at position 1 in target.
+                    Type 'BilinearPixel' is missing the following properties from type 'NearestNeighbor': resizeImage, applyColorPalette, applyDithering, distributeError
+  Overload 2 of 4, '(entries?: readonly (readonly ["nearest-neighbor" | "bilinear", typeof NearestNeighbor])[] | null | undefined): Map<"nearest-neighbor" | "bilinear", typeof NearestNeighbor>', gave the following error.
+    Type 'typeof BilinearPixel' is not assignable to type 'typeof NearestNeighbor'.
+      Type 'BilinearPixel' is missing the following properties from type 'NearestNeighbor': resizeImage, applyColorPalette, applyDithering, distributeError
+core/spritesheet-generator/layouts/GridLayout.ts(78,9): error TS6133: 'frameHeight' is declared but its value is never read.
+core/spritesheet-generator/layouts/LinearLayout.ts(17,41): error TS6133: 'maxSize' is declared but its value is never read.
+rendering/three-renderer/ThreeRenderer.ts(175,27): error TS2339: Property 'antialias' does not exist on type 'WebGLRenderer'.
+shared/types/export.ts(25,11): error TS2304: Cannot find name 'Size'.
+src/App.tsx(46,9): error TS1345: An expression of type 'void' cannot be tested for truthiness.
+src/setup.ts(1,43): error TS2307: Cannot find module '@shared/di' or its corresponding type declarations.
+ui/components/index.ts(3,30): error TS2307: Cannot find module './viewers/PixelPreview/PixelPreview' or its corresponding type declarations.

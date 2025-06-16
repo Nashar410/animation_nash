@@ -54,7 +54,7 @@ describe('GLBLoader', () => {
     describe('loadModel', () => {
         it('should load a valid GLB file', async () => {
             const mockGLBContent = new ArrayBuffer(100);
-            const file = new File([mockGLBContent], 'test.glb', { type: 'model/gltf-binary' });
+            const file = new File([mockGLBContent], 'test.glb', {type: 'model/gltf-binary'});
 
             const model = await loader.loadModel(file);
 
@@ -77,3 +77,4 @@ describe('GLBLoader', () => {
             await expect(loader.loadModel(file)).rejects.toThrow();
         });
     });
+});
