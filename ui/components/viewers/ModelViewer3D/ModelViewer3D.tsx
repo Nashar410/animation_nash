@@ -1,8 +1,8 @@
-// ui/components/viewers/ModelViewer3D/ModelViewer3D.tsx
+// ui/components/viewers/ModelViewer3D/ModelViewer3D.tsx - Version corrigée
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { Model3D, Camera } from '@shared/types';
-import {OrbitControls} from "three/examples/jsm/controls/OrbitControls";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
 interface ModelViewer3DProps {
     model: Model3D | null;
@@ -31,13 +31,14 @@ export function ModelViewer3D({
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-        const currentMount = mountRef.current; // Copier la référence
+        const currentMount = mountRef.current;
         if (!currentMount) return;
+
         // Initialize Three.js scene
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x1a1a1a);
 
-        // Create camera
+        // Create camera with CORRECTED parameters
         const aspect = width / height;
         let threeCamera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
 
@@ -45,8 +46,8 @@ export function ModelViewer3D({
             threeCamera = new THREE.PerspectiveCamera(
                 camera.fov,
                 aspect,
-                camera.near,
-                camera.far
+                0.01, // CORRECTION: near plane plus proche (au lieu de camera.near)
+                1000  // CORRECTION: far plane plus loin
             );
         } else {
             const size = camera.orthographicSize || 10;
@@ -55,8 +56,8 @@ export function ModelViewer3D({
                 size * aspect / 2,
                 size / 2,
                 -size / 2,
-                camera.near,
-                camera.far
+                0.01, // CORRECTION: near plane plus proche
+                1000  // CORRECTION: far plane plus loin
             );
         }
 
@@ -67,12 +68,18 @@ export function ModelViewer3D({
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(width, height);
         renderer.setPixelRatio(window.devicePixelRatio);
-        mountRef?.current?.appendChild(renderer.domElement);
+        currentMount.appendChild(renderer.domElement);
 
-        // Add controls
+        // Add controls with CORRECTED limits
         const controls = new OrbitControls(threeCamera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
+
+        // CORRECTION: Limites de zoom plus larges
+        controls.minDistance = 0.1;  // Zoom très proche
+        controls.maxDistance = 100;  // Zoom très loin
+        controls.minZoom = 0.1;      // Pour orthographique
+        controls.maxZoom = 10;       // Pour orthographique
 
         controls.addEventListener('change', () => {
             if (onCameraChange) {
@@ -103,10 +110,10 @@ export function ModelViewer3D({
 
         // Add helpers if requested
         if (showHelpers) {
-            const gridHelper = new THREE.GridHelper(10, 10);
+            const gridHelper = new THREE.GridHelper(10, 10, 0x888888, 0x444444);
             scene.add(gridHelper);
 
-            const axesHelper = new THREE.AxesHelper(5);
+            const axesHelper = new THREE.AxesHelper(2); // CORRECTION: Axes plus petits
             scene.add(axesHelper);
         }
 
@@ -125,6 +132,7 @@ export function ModelViewer3D({
                 currentMount.removeChild(renderer.domElement);
             }
             renderer.dispose();
+            controls.dispose();
         };
     }, [width, height, showHelpers, camera, onCameraChange]);
 
@@ -145,7 +153,7 @@ export function ModelViewer3D({
         const modelGroup = new THREE.Group();
         modelGroup.userData.isModel = true;
 
-        // Create materials
+        // CORRECTION: Create materials avec textures
         const materials = new Map<string, THREE.Material>();
         model.materials.forEach(mat => {
             const material = new THREE.MeshStandardMaterial({
@@ -153,8 +161,25 @@ export function ModelViewer3D({
                 opacity: mat.opacity,
                 transparent: mat.opacity < 1,
                 metalness: mat.metalness || 0,
-                roughness: mat.roughness || 1,
+                roughness: mat.roughness || 0.8, // CORRECTION: Roughness plus réaliste
             });
+
+            // CORRECTION: Chargement des textures si disponibles
+            if (mat.texture && mat.texture.url) {
+                const textureLoader = new THREE.TextureLoader();
+                textureLoader.load(
+                    mat.texture.url,
+                    (texture) => {
+                        material.map = texture;
+                        material.needsUpdate = true;
+                    },
+                    undefined,
+                    (error) => {
+                        console.warn('Failed to load texture:', error);
+                    }
+                );
+            }
+
             materials.set(mat.id, material);
         });
 
@@ -171,16 +196,27 @@ export function ModelViewer3D({
 
             const material = mesh.materialId
                 ? materials.get(mesh.materialId)
-                : new THREE.MeshStandardMaterial();
+                : new THREE.MeshStandardMaterial({ color: 0x888888 });
 
             const threeMesh = new THREE.Mesh(geometry, material || new THREE.MeshStandardMaterial());
+            threeMesh.name = mesh.name;
             modelGroup.add(threeMesh);
         });
 
-        // Center model
+        // CORRECTION: Centrage et mise à l'échelle intelligente
         const box = new THREE.Box3().setFromObject(modelGroup);
         const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+
+        // Centrer le modèle
         modelGroup.position.sub(center);
+
+        // CORRECTION: Ajuster la taille si le modèle est trop grand/petit
+        const maxDimension = Math.max(size.x, size.y, size.z);
+        if (maxDimension > 10) {
+            const scale = 10 / maxDimension;
+            modelGroup.scale.setScalar(scale);
+        }
 
         scene.add(modelGroup);
         setIsLoading(false);

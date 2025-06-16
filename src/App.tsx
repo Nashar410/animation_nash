@@ -1,5 +1,5 @@
-// src/App.tsx - Version avec interface améliorée
-import { useState, useCallback, useEffect } from 'react';
+// src/App.tsx - Version simplifiée qui fonctionne
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { AppProvider, useAppContext } from '../ui/contexts/AppContext';
 import {
   ModelViewer3D,
@@ -48,7 +48,8 @@ function AppContent() {
   const { processImage, isProcessing } = usePixelProcessor();
   const { exportFrames, isExporting } = useExporter();
 
-  const [renderer] = useState(() => new ThreeRenderer());
+  // CORRECTION: Retour à useMemo mais avec une clé stable
+  const renderer = useMemo(() => new ThreeRenderer(), []);
   const [activeTab, setActiveTab] = useState<'model' | 'settings'>('model');
   const [showGrid, setShowGrid] = useState(true);
 
@@ -60,21 +61,25 @@ function AppContent() {
     }
   }, [loadModel, setModel]);
 
-  // Process current view
+  // Process current view - Version simple qui fonctionne
   const handleProcess = useCallback(async () => {
     if (!model) return;
 
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 512;
 
-    renderer.initialize(canvas);
-    renderer.updateSettings(renderSettings);
+      renderer.initialize(canvas);
+      renderer.updateSettings(renderSettings);
 
-    const result = renderer.render(model, camera);
-    const processed = await processImage(result.image, pixelSettings);
-    if (processed) {
-      setProcessedFrames([processed]);
+      const result = renderer.render(model, camera);
+      const processed = await processImage(result.image, pixelSettings);
+      if (processed) {
+        setProcessedFrames([processed]);
+      }
+    } catch (error) {
+      console.error('Processing error:', error);
     }
   }, [model, camera, renderSettings, pixelSettings, renderer, processImage, setProcessedFrames]);
 
@@ -84,12 +89,23 @@ function AppContent() {
     await exportFrames(processedFrames, exportSettings);
   }, [processedFrames, exportSettings, exportFrames]);
 
-  // Auto-process on settings change
+  // Auto-process avec debouncing simple
   useEffect(() => {
-    if (model) {
+    if (!model) return;
+
+    const timeoutId = setTimeout(() => {
       handleProcess();
-    }
-  }, [pixelSettings.targetSize, pixelSettings.colorPalette, handleProcess, model]);
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [model, pixelSettings.targetSize, pixelSettings.colorPalette, handleProcess]);
+
+  // Cleanup du renderer
+  useEffect(() => {
+    return () => {
+      renderer.dispose();
+    };
+  }, [renderer]);
 
   return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-pink-900">
@@ -127,10 +143,17 @@ function AppContent() {
                               ? 'bg-purple-500/20 text-purple-200 shadow-lg'
                               : 'bg-white/10 text-white/60 hover:bg-white/20'
                       }`}
-                      title="Toggle grid"
+                      title={`${showGrid ? 'Hide' : 'Show'} grid helpers`}
                   >
                     <Grid3x3 className="w-5 h-5" />
                   </button>
+
+                  {/* Grid status indicator - only show when no model */}
+                  {!model && (
+                      <div className="text-xs text-white/60">
+                        Grid: {showGrid ? 'ON' : 'OFF'}
+                      </div>
+                  )}
                   <a
                       href="https://github.com"
                       className="p-3 rounded-xl bg-white/10 text-white/80 hover:bg-white/20 transition-all duration-200"
