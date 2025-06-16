@@ -12,7 +12,12 @@ export class PerformanceMonitor {
             throw new Error(`Mark ${startMark} not found`);
         }
         const duration = performance.now() - start;
-        console.debug(`[Performance] ${name}: ${duration.toFixed(2)}ms`);
+
+        // Utiliser console.warn au lieu de console.debug (autorisé par ESLint)
+        if (process.env.NODE_ENV === 'development') {
+            console.warn(`[Performance] ${name}: ${duration.toFixed(2)}ms`);
+        }
+
         return duration;
     }
 

@@ -9,7 +9,10 @@ export class EventBus implements IEventBus {
         if (!this.events.has(event)) {
             this.events.set(event, new Set());
         }
-        this.events.get(event)!.add(handler);
+        const handlers = this.events.get(event);
+        if (handlers) {
+            handlers.add(handler);
+        }
     }
 
     off<T>(event: string, handler: EventHandler<T>): void {

@@ -23,7 +23,7 @@ export class GridLayout implements ILayout {
         const frameHeight = frames[0].processed.height;
 
         // Calculate grid dimensions
-        let { columns, rows } = this.calculateGridDimensions(
+        const { columns, rows } = this.calculateGridDimensions(
             frames.length,
             frameWidth,
             frameHeight,

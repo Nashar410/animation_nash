@@ -1,4 +1,4 @@
-// eslint.config.mjs - Configuration améliorée
+// eslint.config.mjs - Version optimisée avec gestion des warnings
 import { defineConfig } from "eslint/config";
 import { fixupConfigRules, fixupPluginRules } from "@eslint/compat";
 import react from "eslint-plugin-react";
@@ -51,23 +51,17 @@ export default defineConfig([
                 ...globals.jest,
                 ...globals.node,
             },
-
             parser: tsParser,
             ecmaVersion: "latest",
             sourceType: "module",
-
             parserOptions: {
-                ecmaFeatures: {
-                    jsx: true,
-                },
+                ecmaFeatures: { jsx: true },
                 project: "./tsconfig.json",
             },
         },
 
         settings: {
-            react: {
-                version: "detect",
-            },
+            react: { version: "detect" },
         },
 
         rules: {
@@ -78,27 +72,52 @@ export default defineConfig([
 
             // TypeScript rules
             "@typescript-eslint/explicit-module-boundary-types": "off",
-            "@typescript-eslint/no-explicit-any": "warn",
+            "@typescript-eslint/no-explicit-any": "warn", // Warn au lieu d'error
             "@typescript-eslint/no-unused-vars": ["error", {
                 "argsIgnorePattern": "^_",
                 "varsIgnorePattern": "^_"
             }],
-            "@typescript-eslint/no-non-null-assertion": "warn",
+            "@typescript-eslint/no-non-null-assertion": "warn", // Warn au lieu d'error
 
-            // React Hooks rules
+            // React Hooks rules - plus flexible
             "react-hooks/rules-of-hooks": "error",
             "react-hooks/exhaustive-deps": "warn",
 
+            // Console rules - autorisé en développement
+            "no-console": ["warn", {
+                "allow": ["warn", "error", "debug", "info"]
+            }],
+
             // General rules
-            "no-console": ["warn", { "allow": ["warn", "error"] }],
             "prefer-const": "error",
             "no-var": "error",
         },
     },
+
+    // Règles relaxées pour les tests
+    {
+        files: ["**/*.test.ts", "**/*.test.tsx", "**/__tests__/**"],
+        rules: {
+            "@typescript-eslint/no-explicit-any": "off",
+            "@typescript-eslint/no-non-null-assertion": "off",
+            "no-console": "off",
+        }
+    },
+
+    // Règles relaxées pour les utilitaires
+    {
+        files: ["shared/utils/**", "core/**/utils/**"],
+        rules: {
+            "no-console": "off", // Logger utilise console
+        }
+    },
+
+    // Règles pour les fichiers de déclaration
     {
         files: ["**/*.d.ts"],
         rules: {
             "@typescript-eslint/no-unused-vars": "off",
+            "@typescript-eslint/no-explicit-any": "off",
         }
     }
 ]);

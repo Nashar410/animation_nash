@@ -1,6 +1,6 @@
 
 // shared/interfaces/IEventBus.ts
-export type EventHandler<T = any> = (data: T) => void;
+export type EventHandler<T = unknown> = (data: T) => void;
 
 export interface IEventBus {
     /**

@@ -1,12 +1,12 @@
 
 // shared/interfaces/IWorker.ts
-export interface IWorkerMessage<T = any> {
+export interface IWorkerMessage<T = unknown> {
     id: string;
     type: string;
     payload: T;
 }
 
-export interface IWorkerResponse<T = any> {
+export interface IWorkerResponse<T = unknown> {
     id: string;
     success: boolean;
     result?: T;

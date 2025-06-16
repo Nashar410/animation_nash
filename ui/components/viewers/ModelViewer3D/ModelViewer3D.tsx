@@ -31,8 +31,8 @@ export function ModelViewer3D({
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-        if (!mountRef.current) return;
-
+        const currentMount = mountRef.current; // Copier la référence
+        if (!currentMount) return;
         // Initialize Three.js scene
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x1a1a1a);
@@ -67,7 +67,7 @@ export function ModelViewer3D({
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(width, height);
         renderer.setPixelRatio(window.devicePixelRatio);
-        mountRef.current.appendChild(renderer.domElement);
+        mountRef?.current?.appendChild(renderer.domElement);
 
         // Add controls
         const controls = new OrbitControls(threeCamera, renderer.domElement);
@@ -121,12 +121,12 @@ export function ModelViewer3D({
         animate();
 
         return () => {
-            if (mountRef.current && renderer.domElement) {
-                mountRef.current.removeChild(renderer.domElement);
+            if (currentMount && renderer.domElement) {
+                currentMount.removeChild(renderer.domElement);
             }
             renderer.dispose();
         };
-    }, [width, height, showHelpers]);
+    }, [width, height, showHelpers, camera, onCameraChange]);
 
     // Update model
     useEffect(() => {

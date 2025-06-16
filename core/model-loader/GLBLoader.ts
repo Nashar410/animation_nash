@@ -51,7 +51,7 @@ export class GLBLoader extends ModelLoader {
         }
     }
 
-    private loadGLTF(buffer: ArrayBuffer): Promise<any> {
+    private loadGLTF(buffer: ArrayBuffer): Promise<GLTFData> {
         return new Promise((resolve, reject) => {
             this.loader.parse(
                 buffer,
@@ -62,7 +62,7 @@ export class GLBLoader extends ModelLoader {
         });
     }
 
-    private convertGLTFToModel(gltf: any, _filename: string): Model3D {
+    private convertGLTFToModel(gltf: GLTFData, _filename: string): Model3D {
         const modelId = generateId('model');
         const meshes: Mesh[] = [];
         const materials: Material[] = [];
@@ -277,4 +277,14 @@ export class GLBLoader extends ModelLoader {
         super.dispose();
         // Three.js loader doesn't need explicit disposal
     }
+}
+
+
+interface GLTFData {
+    scene: THREE.Scene;
+    animations: THREE.AnimationClip[];
+    asset?: {
+        generator?: string;
+        version?: string;
+    };
 }

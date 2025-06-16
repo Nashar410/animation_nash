@@ -2,8 +2,8 @@
 import { IContainer } from '../interfaces/IContainer.ts';
 
 export class DIContainer implements IContainer {
-    private services: Map<symbol, () => any> = new Map();
-    private singletons: Map<symbol, any> = new Map();
+    private services: Map<symbol, () => unknown> = new Map();
+    private singletons: Map<symbol, unknown> = new Map();
 
     register<T>(token: symbol, factory: () => T): void {
         this.services.set(token, factory);
