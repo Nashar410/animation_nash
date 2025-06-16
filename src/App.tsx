@@ -1,4 +1,4 @@
-// src/App.tsx - Application principale fonctionnelle
+// src/App.tsx (version corrigée - sans le CSS à la fin)
 import { useState, useCallback, useEffect } from 'react';
 import { AppProvider, useAppContext } from '../ui/contexts/AppContext';
 import {
@@ -8,11 +8,11 @@ import {
   PresetSelector,
   SettingsPanel,
 } from '../ui/components';
+import { useModelLoader } from "@ui/hooks/useModelLoader";
+import { usePixelProcessor } from "@ui/hooks/usePixelProcessor";
+import { useExporter } from "@ui/hooks/useExporter";
 import { ThreeRenderer } from '@rendering/three-renderer';
 import { Download, Settings, Camera, Grid3x3 } from 'lucide-react';
-import {useModelLoader} from "@ui/hooks/useModelLoader.ts";
-import {usePixelProcessor} from "@ui/hooks/usePixelProcessor.ts";
-import {useExporter} from "@ui/hooks/useExporter.ts";
 
 function AppContent() {
   const {
@@ -32,7 +32,7 @@ function AppContent() {
     setProcessedFrames,
   } = useAppContext();
 
-  const { loadModel, isLoading: isLoadingModel } = useModelLoader();
+  const { loadModel } = useModelLoader();
   const { processImage, processedFrame, isProcessing } = usePixelProcessor();
   const { exportFrames, isExporting } = useExporter();
 
@@ -251,39 +251,3 @@ function App() {
 
 export default App;
 
-// src/index.css - Ajout de styles personnalisés
-/* Ajouter à la fin du fichier existant */
-.image-rendering-pixelated {
-  image-rendering: -moz-crisp-edges;
-  image-rendering: -webkit-crisp-edges;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-}
-
-/* Custom range slider */
-input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  cursor: pointer;
-}
-
-input[type="range"]::-webkit-slider-track {
-  background: #374151;
-  height: 0.5rem;
-  border-radius: 0.25rem;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  background: #8b5cf6;
-  height: 1.5rem;
-  width: 1.5rem;
-  border-radius: 50%;
-  margin-top: -0.5rem;
-}
-
-input[type="range"]:hover::-webkit-slider-thumb {
-  background: #7c3aed;
-}

@@ -15,6 +15,7 @@ import {
     Texture
 } from '@shared/types/models';
 import {generateId} from "@shared/utils/id.ts";
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 export class GLBLoader extends ModelLoader {
     private loader: GLTFLoader;

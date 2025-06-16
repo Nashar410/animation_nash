@@ -1,10 +1,13 @@
+// 3. Fix pour src/three.d.ts - Remplacer les types vides {}
+import {AnimationClip, LoadingManager, Scene} from "three";
+
 declare module 'three/examples/jsm/controls/OrbitControls' {
   import { Camera, EventDispatcher, MOUSE, Vector3 } from 'three';
 
   export interface OrbitControlsEventMap {
-    change: {};
-    start: {};
-    end: {};
+    change: Record<string, never>;
+    start: Record<string, never>;
+    end: Record<string, never>;
   }
 
   export class OrbitControls extends EventDispatcher<OrbitControlsEventMap> {
@@ -69,7 +72,7 @@ declare module 'three/examples/jsm/controls/OrbitControls' {
 }
 
 declare module 'three/examples/jsm/loaders/GLTFLoader' {
-  import { LoadingManager, Group, Material, Camera, Scene, AnimationClip } from 'three';
+  import { LoadingManager, Camera, Scene, AnimationClip } from 'three';
 
   export interface GLTF {
     animations: AnimationClip[];
@@ -86,17 +89,17 @@ declare module 'three/examples/jsm/loaders/GLTFLoader' {
     constructor(manager?: LoadingManager);
 
     load(
-      url: string,
-      onLoad: (gltf: GLTF) => void,
-      onProgress?: (event: ProgressEvent) => void,
-      onError?: (event: ErrorEvent) => void
+        url: string,
+        onLoad: (gltf: GLTF) => void,
+        onProgress?: (event: ProgressEvent) => void,
+        onError?: (event: ErrorEvent) => void
     ): void;
 
     parse(
-      data: ArrayBuffer | string,
-      path: string,
-      onLoad: (gltf: GLTF) => void,
-      onError?: (event: ErrorEvent) => void
+        data: ArrayBuffer | string,
+        path: string,
+        onLoad: (gltf: GLTF) => void,
+        onError?: (event: ErrorEvent) => void
     ): void;
   }
 }

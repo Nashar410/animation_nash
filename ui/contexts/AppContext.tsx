@@ -10,6 +10,7 @@ import {
     CameraPreset,
 } from '@shared/types';
 import { CameraManager, PresetFactory } from '@core/camera-system';
+import { PalettePresets } from '@core/pixel-processor/palettes/PalettePresets';
 
 interface AppContextValue {
     // Model

@@ -2,6 +2,7 @@
 import { useState, useCallback } from 'react';
 import { ProcessedFrame, PixelSettings, PixelAlgorithm } from '@shared/types';
 import {SimplePixelProcessor} from "@core/pixel-processor/SimplePixelProcessor.ts";
+import { AlgorithmFactory } from "@core/pixel-processor/algorithms/AlgorithmFactory";
 
 
 export function usePixelProcessor(initialAlgorithm: PixelAlgorithm = 'nearest-neighbor') {

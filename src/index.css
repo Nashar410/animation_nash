@@ -1,3 +1,40 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom styles for pixel art */
+.image-rendering-pixelated {
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-crisp-edges;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+/* Custom range slider */
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-track {
+    background: #374151;
+    height: 0.5rem;
+    border-radius: 0.25rem;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    background: #8b5cf6;
+    height: 1.5rem;
+    width: 1.5rem;
+    border-radius: 50%;
+    margin-top: -0.5rem;
+}
+
+input[type="range"]:hover::-webkit-slider-thumb {
+    background: #7c3aed;
+}
