@@ -1,4 +1,4 @@
-// ui/components/viewers/ModelViewer3D/ModelViewer3D.tsx - Version stable
+// ui/components/viewers/ModelViewer3D/ModelViewer3D.tsx - Correction du cadrage
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import * as THREE from 'three';
 import { Model3D, Camera } from '@shared/types';
@@ -33,29 +33,63 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
         controls: OrbitControls;
         mixer?: THREE.AnimationMixer;
         clock: THREE.Clock;
+        currentModel?: THREE.Group;
+        modelBounds?: THREE.Box3;
     } | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    // CORRECTION: Exposer la méthode captureFrame via useImperativeHandle
+    // CORRECTION: Méthode de capture améliorée avec cadrage automatique
     useImperativeHandle(ref, () => ({
         captureFrame: (): ImageData | null => {
-            if (!sceneRef.current) {
-                console.warn('❌ No scene available for capture');
+            if (!sceneRef.current || !sceneRef.current.currentModel) {
+                console.warn('❌ No scene or model available for capture');
                 return null;
             }
 
-            const { scene, camera: threeCamera, renderer } = sceneRef.current;
+            const { scene, camera: threeCamera, renderer, currentModel, modelBounds } = sceneRef.current;
 
             try {
+                // CORRECTION: Auto-cadrage du modèle pour la capture
+                if (modelBounds) {
+                    const boundingBox = modelBounds.clone();
+                    const center = boundingBox.getCenter(new THREE.Vector3());
+                    const size = boundingBox.getSize(new THREE.Vector3());
+
+                    // Calcul de la distance optimale pour cadrer le modèle
+                    const maxDimension = Math.max(size.x, size.y, size.z);
+                    const fov = threeCamera instanceof THREE.PerspectiveCamera ? threeCamera.fov : 60;
+                    const distance = maxDimension / (2 * Math.tan((fov * Math.PI / 180) / 2)) * 1.5; // 1.5x pour marge
+
+                    // Position temporaire de la caméra pour capture optimale
+                    const tempPosition = threeCamera.position.clone();
+                    const tempTarget = new THREE.Vector3();
+
+                    // CORRECTION: Positionner la caméra pour bien cadrer le modèle
+                    threeCamera.position.copy(center);
+                    threeCamera.position.y += size.y * 0.3; // Légèrement au-dessus du centre
+                    threeCamera.position.z += distance;
+                    threeCamera.lookAt(center);
+                    threeCamera.updateMatrixWorld();
+
+                    console.log(`📐 Auto-framing: distance=${distance.toFixed(2)}, center=(${center.x.toFixed(1)}, ${center.y.toFixed(1)}, ${center.z.toFixed(1)})`);
+                }
+
+                // CORRECTION: Fond uniforme pour la capture
+                const originalBackground = scene.background;
+                scene.background = new THREE.Color(0x404040); // Gris moyen pour éviter les artefacts
+
                 // Force render
                 renderer.render(scene, threeCamera);
 
-                // Read pixels from WebGL canvas
+                // Capture des pixels
                 const gl = renderer.getContext();
                 const pixels = new Uint8Array(width * height * 4);
                 gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
 
-                // Flip vertically (WebGL renders upside down)
+                // Restore background
+                scene.background = originalBackground;
+
+                // CORRECTION: Flip vertical avec nettoyage des artefacts
                 const imageData = new ImageData(width, height);
                 for (let y = 0; y < height; y++) {
                     for (let x = 0; x < width; x++) {
@@ -69,7 +103,7 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
                     }
                 }
 
-                console.log('✅ Frame captured successfully');
+                console.log('✅ Frame captured with auto-framing');
                 return imageData;
             } catch (error) {
                 console.error('❌ Error capturing frame:', error);
@@ -78,54 +112,57 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
         }
     }), [width, height]);
 
-    // CORRECTION: Initialisation UNIQUEMENT une fois avec des dépendances stables
+    // Initialisation unique
     useEffect(() => {
         const currentMount = mountRef.current;
-        if (!currentMount || sceneRef.current) return; // Ne pas recréer si déjà initialisé
+        if (!currentMount || sceneRef.current) return;
 
         console.log('🎬 Initializing ModelViewer3D...');
 
-        // Initialize Three.js scene
+        // Scene
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x1a1a1a);
 
-        // Create camera (on utilisera les valeurs par défaut puis on mettra à jour)
+        // Camera
         const aspect = width / height;
-        const threeCamera = new THREE.PerspectiveCamera(75, aspect, 0.01, 1000);
+        const threeCamera = new THREE.PerspectiveCamera(60, aspect, 0.01, 1000); // FOV réduit pour moins de distorsion
         threeCamera.position.set(10, 10, 10);
 
-        // Create renderer
+        // Renderer
         const renderer = new THREE.WebGLRenderer({
-            antialias: true,
+            antialias: false, // CORRECTION: Pas d'antialiasing pour pixel art
             alpha: true,
             preserveDrawingBuffer: true
         });
         renderer.setSize(width, height);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.setPixelRatio(1); // CORRECTION: Ratio fixe pour consistance
+        renderer.shadowMap.enabled = false; // CORRECTION: Pas d'ombres pour simplifier
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
         currentMount.appendChild(renderer.domElement);
 
         // Controls
         const controls = new OrbitControls(threeCamera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
-        controls.minDistance = 0.01;
-        controls.maxDistance = 1000;
+        controls.minDistance = 0.5;
+        controls.maxDistance = 50;
         controls.enablePan = true;
 
-        // Add lights
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        // CORRECTION: Éclairage simplifié et plus uniforme
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); // Plus lumineux
         scene.add(ambientLight);
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(5, 5, 5);
-        directionalLight.castShadow = true;
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        directionalLight.position.set(5, 10, 5);
+        directionalLight.castShadow = false;
         scene.add(directionalLight);
 
-        // Clock for animations
-        const clock = new THREE.Clock();
+        // Lumière de remplissage pour éviter les zones trop sombres
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.2);
+        fillLight.position.set(-5, -5, -5);
+        scene.add(fillLight);
 
+        const clock = new THREE.Clock();
         sceneRef.current = { scene, camera: threeCamera, renderer, controls, clock };
 
         // Animation loop
@@ -150,11 +187,10 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
                 onCameraChange({
                     position: { x: cam.position.x, y: cam.position.y, z: cam.position.z },
                     rotation: { x: cam.quaternion.x, y: cam.quaternion.y, z: cam.quaternion.z, w: cam.quaternion.w },
-                    fov: cam instanceof THREE.PerspectiveCamera ? cam.fov : 75,
+                    fov: cam instanceof THREE.PerspectiveCamera ? cam.fov : 60,
                     near: cam.near,
                     far: cam.far,
                     type: cam instanceof THREE.PerspectiveCamera ? 'perspective' : 'orthographic',
-                    orthographicSize: cam instanceof THREE.OrthographicCamera ? (cam.top - cam.bottom) : undefined,
                 });
             }
         });
@@ -170,15 +206,13 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
             renderer.dispose();
             sceneRef.current = null;
         };
-    }, []); // CORRECTION: Dépendances vides pour initialiser une seule fois
+    }, []);
 
-    // Update camera properties when camera prop changes
+    // Update camera
     useEffect(() => {
         if (!sceneRef.current) return;
 
         const { camera: threeCamera } = sceneRef.current;
-
-        // Update camera properties
         threeCamera.position.set(camera.position.x, camera.position.y, camera.position.z);
         threeCamera.quaternion.set(camera.rotation.x, camera.rotation.y, camera.rotation.z, camera.rotation.w);
 
@@ -194,11 +228,9 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
 
         const { scene } = sceneRef.current;
 
-        // Remove existing helpers
         const helpers = scene.children.filter(child => child.userData.isHelper);
         helpers.forEach(helper => scene.remove(helper));
 
-        // Add helpers if requested
         if (showHelpers) {
             const gridHelper = new THREE.GridHelper(20, 20, 0x888888, 0x444444);
             gridHelper.userData.isHelper = true;
@@ -210,7 +242,7 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
         }
     }, [showHelpers]);
 
-    // Update model
+    // CORRECTION: Update model avec meilleur cadrage
     useEffect(() => {
         if (!sceneRef.current || !model) return;
 
@@ -220,10 +252,9 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
         console.log('🎨 Loading model into scene...');
 
         // Remove existing models
-        const modelsToRemove = scene.children.filter(child => child.userData.isModel);
-        modelsToRemove.forEach(child => {
-            scene.remove(child);
-            child.traverse((obj) => {
+        if (sceneRef.current.currentModel) {
+            scene.remove(sceneRef.current.currentModel);
+            sceneRef.current.currentModel.traverse((obj) => {
                 if (obj instanceof THREE.Mesh) {
                     obj.geometry.dispose();
                     if (Array.isArray(obj.material)) {
@@ -233,20 +264,28 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
                     }
                 }
             });
-        });
+        }
+
+        // Dispose existing mixer
+        if (sceneRef.current.mixer) {
+            sceneRef.current.mixer.stopAllAction();
+            sceneRef.current.mixer = undefined;
+        }
 
         // Create model group
         const modelGroup = new THREE.Group();
         modelGroup.userData.isModel = true;
 
-        // Create materials
+        // CORRECTION: Matériaux plus simples et consistants
         const materials = new Map<string, THREE.Material>();
 
-        // CORRECTION: Créer des matériaux plus simples pour commencer
         model.materials.forEach(mat => {
             const material = new THREE.MeshLambertMaterial({
                 color: new THREE.Color(mat.color.r / 255, mat.color.g / 255, mat.color.b / 255),
+                transparent: mat.opacity < 1,
+                opacity: mat.opacity,
             });
+
             materials.set(mat.id, material);
         });
 
@@ -265,6 +304,10 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
                         geometry.computeVertexNormals();
                     }
 
+                    if (mesh.uvs && mesh.uvs.length > 0) {
+                        geometry.setAttribute('uv', new THREE.BufferAttribute(mesh.uvs, 2));
+                    }
+
                     if (mesh.indices && mesh.indices.length > 0) {
                         geometry.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
                     }
@@ -275,6 +318,7 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
 
                     const threeMesh = new THREE.Mesh(geometry, material);
                     threeMesh.name = mesh.name;
+
                     modelGroup.add(threeMesh);
                     meshCount++;
                 }
@@ -284,22 +328,38 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
         });
 
         if (meshCount > 0) {
-            // Center and scale the model
-            const box = new THREE.Box3().setFromObject(modelGroup);
-            const center = box.getCenter(new THREE.Vector3());
-            const size = box.getSize(new THREE.Vector3());
+            // CORRECTION: Calcul précis des bounds pour cadrage
+            const boundingBox = new THREE.Box3().setFromObject(modelGroup);
+            const center = boundingBox.getCenter(new THREE.Vector3());
+            const size = boundingBox.getSize(new THREE.Vector3());
 
+            // CORRECTION: Centrage optimal
             modelGroup.position.sub(center);
+            modelGroup.position.y += size.y * 0.1; // Légèrement vers le haut pour éviter le crop
 
-            // Scale to fit in view
+            // CORRECTION: Scaling pour remplir 70% de la vue
             const maxDimension = Math.max(size.x, size.y, size.z);
-            if (maxDimension > 10) {
-                const scale = 8 / maxDimension;
+            if (maxDimension > 0) {
+                const targetSize = 8; // Taille dans la scène
+                const scale = targetSize / maxDimension;
                 modelGroup.scale.setScalar(scale);
+                console.log(`📏 Model scaled by: ${scale.toFixed(2)} (bounds: ${size.x.toFixed(1)}×${size.y.toFixed(1)}×${size.z.toFixed(1)})`);
             }
 
             scene.add(modelGroup);
-            console.log(`✅ Model loaded with ${meshCount} meshes`);
+
+            // Stocker les références pour la capture
+            sceneRef.current.currentModel = modelGroup;
+            sceneRef.current.modelBounds = boundingBox;
+
+            // Setup animations si présentes
+            if (model.animations.length > 0) {
+                const mixer = new THREE.AnimationMixer(modelGroup);
+                sceneRef.current.mixer = mixer;
+                console.log(`🎬 Model loaded: ${meshCount} meshes, ${model.animations.length} animations`);
+            }
+
+            console.log(`✅ Model loaded and positioned for optimal capture`);
         }
 
         setIsLoading(false);

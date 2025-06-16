@@ -1,5 +1,5 @@
-// ui/components/viewers/ModelViewer3D/PixelPreview/PixelPreview.tsx - Version avec événements passifs
-import { useEffect, useRef, useState } from 'react';
+// ui/components/viewers/ModelViewer3D/PixelPreview/PixelPreview.tsx - Zoom définitivement fixé
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { ProcessedFrame } from '@shared/types';
 
 interface PixelPreviewProps {
@@ -16,13 +16,14 @@ export function PixelPreview({
                                  backgroundColor = '#1a1a1a',
                              }: PixelPreviewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const [zoom, setZoom] = useState(1);
     const [pan, setPan] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
 
-    // Fonction de rendu séparée et optimisée
-    const renderFrame = () => {
+    // Fonction de rendu
+    const renderFrame = useCallback(() => {
         if (!canvasRef.current || !frame) return;
 
         const canvas = canvasRef.current;
@@ -34,10 +35,10 @@ export function PixelPreview({
         ctx.fillStyle = backgroundColor;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Save context for transformations
+        // Save context
         ctx.save();
 
-        // Apply zoom and pan
+        // Apply zoom and pan around center
         const centerX = canvas.width / 2;
         const centerY = canvas.height / 2;
 
@@ -48,91 +49,78 @@ export function PixelPreview({
         // Disable smoothing for pixel art
         ctx.imageSmoothingEnabled = false;
 
-        // Create temporary canvas for pixel data
+        // Create temp canvas for pixel data
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = frame.processed.width;
         tempCanvas.height = frame.processed.height;
         const tempCtx = tempCanvas.getContext('2d');
         if (!tempCtx) return;
 
-        // Put image data
         tempCtx.putImageData(frame.processed, 0, 0);
 
-        // Calculate scaled dimensions
+        // Calculate dimensions
         const scaledWidth = frame.processed.width * scale;
         const scaledHeight = frame.processed.height * scale;
-
-        // Center the image
         const x = (canvas.width - scaledWidth) / 2;
         const y = (canvas.height - scaledHeight) / 2;
 
-        // Draw scaled
+        // Draw the pixel art
         ctx.drawImage(tempCanvas, x, y, scaledWidth, scaledHeight);
 
-        // Draw grid if enabled and zoom is sufficient
+        // Draw grid if enabled
         if (showGrid && scale * zoom > 2) {
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
             ctx.lineWidth = 1 / zoom;
 
-            const startX = x;
-            const startY = y;
-
-            // Vertical lines
+            // Vertical grid lines
             for (let i = 0; i <= frame.processed.width; i++) {
-                const lineX = startX + i * scale;
+                const lineX = x + i * scale;
                 ctx.beginPath();
-                ctx.moveTo(lineX, startY);
-                ctx.lineTo(lineX, startY + scaledHeight);
+                ctx.moveTo(lineX, y);
+                ctx.lineTo(lineX, y + scaledHeight);
                 ctx.stroke();
             }
 
-            // Horizontal lines
+            // Horizontal grid lines
             for (let i = 0; i <= frame.processed.height; i++) {
-                const lineY = startY + i * scale;
+                const lineY = y + i * scale;
                 ctx.beginPath();
-                ctx.moveTo(startX, lineY);
-                ctx.lineTo(startX + scaledWidth, lineY);
+                ctx.moveTo(x, lineY);
+                ctx.lineTo(x + scaledWidth, lineY);
                 ctx.stroke();
             }
         }
 
         ctx.restore();
-    };
-
-    // Effet optimisé
-    useEffect(() => {
-        renderFrame();
     }, [frame, scale, showGrid, backgroundColor, zoom, pan]);
 
-    // CORRECTION: Gestion du zoom avec addEventListener pour contrôler passive
+    // Render effect
     useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
+        renderFrame();
+    }, [renderFrame]);
 
-        const handleWheel = (e: WheelEvent) => {
-            e.preventDefault();
+    // CORRECTION: Wheel handler direct sur le composant
+    const handleWheel = useCallback((e: React.WheelEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
 
-            const delta = e.deltaY > 0 ? 0.9 : 1.1;
-            const newZoom = Math.max(0.1, Math.min(10, zoom * delta));
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        setZoom(prevZoom => {
+            const newZoom = Math.max(0.1, Math.min(10, prevZoom * delta));
+            console.log(`🔍 Zoom: ${(newZoom * 100).toFixed(0)}%`);
+            return newZoom;
+        });
+    }, []);
 
-            setZoom(newZoom);
-        };
-
-        // CORRECTION: Ajouter l'événement avec passive: false
-        canvas.addEventListener('wheel', handleWheel, { passive: false });
-
-        return () => {
-            canvas.removeEventListener('wheel', handleWheel);
-        };
-    }, [zoom]);
-
-    // Gestion du pan avec la souris
-    const handleMouseDown = (e: React.MouseEvent) => {
+    // Mouse handlers
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
         setIsDragging(true);
         setLastMousePos({ x: e.clientX, y: e.clientY });
-    };
+        console.log('🖱️ Start dragging');
+    }, []);
 
-    const handleMouseMove = (e: React.MouseEvent) => {
+    const handleMouseMove = useCallback((e: React.MouseEvent) => {
         if (!isDragging) return;
 
         const deltaX = e.clientX - lastMousePos.x;
@@ -144,17 +132,33 @@ export function PixelPreview({
         }));
 
         setLastMousePos({ x: e.clientX, y: e.clientY });
-    };
+    }, [isDragging, lastMousePos]);
 
-    const handleMouseUp = () => {
-        setIsDragging(false);
-    };
+    const handleMouseUp = useCallback(() => {
+        if (isDragging) {
+            setIsDragging(false);
+            console.log('🖱️ Stop dragging');
+        }
+    }, [isDragging]);
 
-    // Reset zoom et pan
-    const resetView = () => {
+    // Reset view
+    const resetView = useCallback(() => {
         setZoom(1);
         setPan({ x: 0, y: 0 });
-    };
+        console.log('🔄 View reset');
+    }, []);
+
+    // CORRECTION: Keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'r' || e.key === 'R') {
+                resetView();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [resetView]);
 
     if (!frame) {
         return (
@@ -165,14 +169,28 @@ export function PixelPreview({
     }
 
     return (
-        <div className="relative inline-block">
+        <div
+            ref={containerRef}
+            className="relative inline-block select-none"
+            style={{
+                width: 400,
+                height: 400,
+                overflow: 'hidden',
+                cursor: isDragging ? 'grabbing' : 'grab'
+            }}
+            onWheel={handleWheel} // CORRECTION: Directement sur le div
+        >
             {/* Canvas */}
             <canvas
                 ref={canvasRef}
                 width={400}
                 height={400}
-                className="border border-gray-700 cursor-grab active:cursor-grabbing"
-                style={{ imageRendering: 'pixelated' }}
+                className="border border-gray-700"
+                style={{
+                    imageRendering: 'pixelated',
+                    display: 'block',
+                    touchAction: 'none' // Prevent mobile scroll
+                }}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
@@ -180,24 +198,32 @@ export function PixelPreview({
             />
 
             {/* Controls overlay */}
-            <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded space-y-1">
+            <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded space-y-1">
                 <div>{frame.processed.width} × {frame.processed.height}</div>
                 <div>Zoom: {(zoom * 100).toFixed(0)}%</div>
+                <div>Pan: {pan.x.toFixed(0)}, {pan.y.toFixed(0)}</div>
             </div>
 
             {/* Reset button */}
             <button
                 onClick={resetView}
                 className="absolute top-2 right-2 bg-purple-500 hover:bg-purple-600 text-white text-xs px-2 py-1 rounded transition-colors"
-                title="Reset view"
+                title="Reset view (R)"
             >
                 Reset
             </button>
 
             {/* Instructions */}
-            <div className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded text-center">
-                Scroll to zoom • Drag to pan
+            <div className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded text-center">
+                Scroll to zoom • Drag to pan • Press R to reset
             </div>
+
+            {/* Debug info in dev mode */}
+            {process.env.NODE_ENV === 'development' && (
+                <div className="absolute top-12 left-2 bg-red-500 bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                    DEBUG: Zoom {zoom.toFixed(2)} | Dragging: {isDragging ? 'Yes' : 'No'}
+                </div>
+            )}
         </div>
     );
 }

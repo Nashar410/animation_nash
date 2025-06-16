@@ -1,4 +1,4 @@
-// core/pixel-processor/algorithms/NearestNeighbor.ts
+// core/pixel-processor/algorithms/NearestNeighbor.ts - Version anti-artefacts
 import { IPixelAlgorithm } from '@shared/interfaces';
 import { PixelSettings, ColorPalette } from '@shared/types/pixelart';
 import { colorDistance } from '@shared/utils/color';
@@ -7,20 +7,33 @@ export class NearestNeighbor implements IPixelAlgorithm {
     name = 'nearest-neighbor' as const;
 
     apply(input: ImageData, settings: PixelSettings): ImageData {
-        // 1. Redimensionner l'image
-        const resized = this.resizeImage(input, settings.targetSize.width, settings.targetSize.height);
+        console.log(`🔄 Processing ${input.width}x${input.height} → ${settings.targetSize.width}x${settings.targetSize.height}`);
 
-        // 2. Appliquer la palette de couleurs si spécifiée
-        let result = resized;
+        // CORRECTION 1: Pre-filtrage pour nettoyer l'image d'entrée
+        const cleaned = this.cleanInput(input);
+
+        // CORRECTION 2: Redimensionnement avec anti-aliasing contrôlé
+        const resized = this.resizeImageSmooth(cleaned, settings.targetSize.width, settings.targetSize.height);
+
+        // CORRECTION 3: Post-traitement pour réduire les artefacts
+        let result = this.removeArtefacts(resized);
+
+        // 4. Appliquer la palette de couleurs si spécifiée
         if (settings.colorPalette) {
-            result = this.applyColorPalette(resized, settings.colorPalette);
+            result = this.applyColorPalette(result, settings.colorPalette);
         }
 
-        // 3. Appliquer le dithering si activé
+        // 5. Appliquer le dithering si activé
         if (settings.dithering && settings.colorPalette) {
             result = this.applyDithering(result, settings.colorPalette, settings.ditheringStrength);
         }
 
+        // CORRECTION 6: Ajustements finaux
+        if (settings.contrastBoost > 0 || settings.brightnessAdjust !== 0) {
+            result = this.adjustBrightnessContrast(result, settings.brightnessAdjust, settings.contrastBoost);
+        }
+
+        console.log('✅ Pixel processing complete');
         return result;
     }
 
@@ -28,23 +41,110 @@ export class NearestNeighbor implements IPixelAlgorithm {
         return true;
     }
 
-    private resizeImage(input: ImageData, targetWidth: number, targetHeight: number): ImageData {
-        const output = new ImageData(targetWidth, targetHeight);
-        const scaleX = input.width / targetWidth;
-        const scaleY = input.height / targetHeight;
+    // CORRECTION: Nettoyage de l'image d'entrée
+    private cleanInput(input: ImageData): ImageData {
+        const output = new ImageData(
+            new Uint8ClampedArray(input.data),
+            input.width,
+            input.height
+        );
 
-        for (let y = 0; y < targetHeight; y++) {
-            for (let x = 0; x < targetWidth; x++) {
-                const srcX = Math.floor(x * scaleX);
-                const srcY = Math.floor(y * scaleY);
+        // Filtrage médian simple pour réduire le bruit
+        for (let y = 1; y < input.height - 1; y++) {
+            for (let x = 1; x < input.width - 1; x++) {
+                for (let c = 0; c < 3; c++) { // RGB seulement
+                    const values = [];
 
-                const srcIndex = (srcY * input.width + srcX) * 4;
-                const dstIndex = (y * targetWidth + x) * 4;
+                    // Récupérer les valeurs 3x3 autour du pixel
+                    for (let dy = -1; dy <= 1; dy++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            const idx = ((y + dy) * input.width + (x + dx)) * 4 + c;
+                            values.push(input.data[idx]);
+                        }
+                    }
 
-                output.data[dstIndex] = input.data[srcIndex];         // R
-                output.data[dstIndex + 1] = input.data[srcIndex + 1]; // G
-                output.data[dstIndex + 2] = input.data[srcIndex + 2]; // B
-                output.data[dstIndex + 3] = input.data[srcIndex + 3]; // A
+                    // Médiane
+                    values.sort((a, b) => a - b);
+                    const median = values[Math.floor(values.length / 2)];
+
+                    const outIdx = (y * input.width + x) * 4 + c;
+                    output.data[outIdx] = median;
+                }
+            }
+        }
+
+        return output;
+    }
+
+    // CORRECTION: Redimensionnement avec anti-aliasing contrôlé
+    private resizeImageSmooth(input: ImageData, targetWidth: number, targetHeight: number): ImageData {
+        // Créer un canvas temporaire pour utiliser le redimensionnement du navigateur
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = input.width;
+        tempCanvas.height = input.height;
+        const tempCtx = tempCanvas.getContext('2d')!;
+        tempCtx.putImageData(input, 0, 0);
+
+        // Canvas de sortie
+        const outputCanvas = document.createElement('canvas');
+        outputCanvas.width = targetWidth;
+        outputCanvas.height = targetHeight;
+        const outputCtx = outputCanvas.getContext('2d')!;
+
+        // CORRECTION: Utiliser un algorithme de redimensionnement de qualité
+        outputCtx.imageSmoothingEnabled = true;
+        outputCtx.imageSmoothingQuality = 'high';
+
+        // Redimensionner
+        outputCtx.drawImage(tempCanvas, 0, 0, targetWidth, targetHeight);
+
+        return outputCtx.getImageData(0, 0, targetWidth, targetHeight);
+    }
+
+    // CORRECTION: Suppression des artefacts
+    private removeArtefacts(input: ImageData): ImageData {
+        const output = new ImageData(
+            new Uint8ClampedArray(input.data),
+            input.width,
+            input.height
+        );
+
+        // Détection et correction des pixels isolés (artefacts)
+        for (let y = 1; y < input.height - 1; y++) {
+            for (let x = 1; x < input.width - 1; x++) {
+                const centerIdx = (y * input.width + x) * 4;
+
+                // Vérifier si ce pixel est très différent de ses voisins
+                let neighborSum = [0, 0, 0];
+                let neighborCount = 0;
+
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        if (dx === 0 && dy === 0) continue;
+
+                        const nIdx = ((y + dy) * input.width + (x + dx)) * 4;
+                        neighborSum[0] += input.data[nIdx];
+                        neighborSum[1] += input.data[nIdx + 1];
+                        neighborSum[2] += input.data[nIdx + 2];
+                        neighborCount++;
+                    }
+                }
+
+                const avgR = neighborSum[0] / neighborCount;
+                const avgG = neighborSum[1] / neighborCount;
+                const avgB = neighborSum[2] / neighborCount;
+
+                const centerR = input.data[centerIdx];
+                const centerG = input.data[centerIdx + 1];
+                const centerB = input.data[centerIdx + 2];
+
+                // Si le pixel est très différent de la moyenne (artefact probable)
+                const diff = Math.abs(centerR - avgR) + Math.abs(centerG - avgG) + Math.abs(centerB - avgB);
+                if (diff > 150) { // Seuil d'artefact
+                    output.data[centerIdx] = Math.round(avgR);
+                    output.data[centerIdx + 1] = Math.round(avgG);
+                    output.data[centerIdx + 2] = Math.round(avgB);
+                }
             }
         }
 
@@ -93,7 +193,7 @@ export class NearestNeighbor implements IPixelAlgorithm {
             input.height
         );
 
-        // Floyd-Steinberg dithering
+        // Floyd-Steinberg dithering amélioré
         for (let y = 0; y < input.height; y++) {
             for (let x = 0; x < input.width; x++) {
                 const index = (y * input.width + x) * 4;
@@ -119,16 +219,44 @@ export class NearestNeighbor implements IPixelAlgorithm {
                 output.data[index + 1] = closestColor.g;
                 output.data[index + 2] = closestColor.b;
 
-                // Calculer l'erreur
+                // Calculer l'erreur avec strength
                 const errorR = (oldR - closestColor.r) * strength;
                 const errorG = (oldG - closestColor.g) * strength;
                 const errorB = (oldB - closestColor.b) * strength;
 
-                // Distribuer l'erreur aux pixels voisins
+                // Distribuer l'erreur (Floyd-Steinberg)
                 this.distributeError(output, x + 1, y, errorR * 7/16, errorG * 7/16, errorB * 7/16);
                 this.distributeError(output, x - 1, y + 1, errorR * 3/16, errorG * 3/16, errorB * 3/16);
                 this.distributeError(output, x, y + 1, errorR * 5/16, errorG * 5/16, errorB * 5/16);
                 this.distributeError(output, x + 1, y + 1, errorR * 1/16, errorG * 1/16, errorB * 1/16);
+            }
+        }
+
+        return output;
+    }
+
+    // CORRECTION: Ajustement luminosité/contraste amélioré
+    private adjustBrightnessContrast(input: ImageData, brightness: number, contrast: number): ImageData {
+        const output = new ImageData(
+            new Uint8ClampedArray(input.data),
+            input.width,
+            input.height
+        );
+
+        const contrastFactor = 1 + contrast;
+
+        for (let i = 0; i < output.data.length; i += 4) {
+            for (let j = 0; j < 3; j++) { // RGB seulement
+                let value = output.data[i + j];
+
+                // Appliquer luminosité
+                value += brightness;
+
+                // Appliquer contraste
+                value = ((value - 128) * contrastFactor) + 128;
+
+                // Clamper
+                output.data[i + j] = Math.max(0, Math.min(255, Math.round(value)));
             }
         }
 

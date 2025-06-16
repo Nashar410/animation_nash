@@ -1,4 +1,4 @@
-// src/App.tsx - Solution avec un seul renderer partagé
+// src/App.tsx - Solution finale : un seul contexte WebGL
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { AppProvider, useAppContext } from '../ui/contexts/AppContext';
 import {
@@ -9,8 +9,8 @@ import {
   SettingsPanel,
 } from '@ui/components';
 import { useModelLoader } from "@ui/hooks/useModelLoader";
-import { usePixelProcessor } from "@ui/hooks/usePixelProcessor";
 import { useExporter } from "@ui/hooks/useExporter";
+import { NearestNeighbor } from '@core/pixel-processor/algorithms/NearestNeighbor';
 import {
   Download,
   Settings,
@@ -43,16 +43,19 @@ function AppContent() {
   } = useAppContext();
 
   const { loadModel, isLoading: modelLoading, error: modelError } = useModelLoader();
-  const { processImage, isProcessing } = usePixelProcessor();
   const { exportFrames, isExporting } = useExporter();
 
   const [activeTab, setActiveTab] = useState<'model' | 'settings'>('model');
   const [showGrid, setShowGrid] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // CORRECTION: Référence vers le ModelViewer3D pour capturer son rendu
+  // Référence vers le ModelViewer3D pour capturer ses frames
   const modelViewerRef = useRef<{
     captureFrame: () => ImageData | null;
   } | null>(null);
+
+  // CORRECTION: Instance d'algorithme réutilisable (sans créer de contexte WebGL)
+  const pixelAlgorithmRef = useRef(new NearestNeighbor());
 
   // Handle file upload
   const handleFileSelect = useCallback(async (file: File) => {
@@ -62,34 +65,66 @@ function AppContent() {
     }
   }, [loadModel, setModel]);
 
-  // CORRECTION: Process en utilisant le renderer du ModelViewer3D
+  // CORRECTION: Process pixel art directement avec l'algorithme (sans WebGL)
+  const processPixelArt = useCallback((imageData: ImageData) => {
+    const startTime = performance.now();
+
+    try {
+      console.log('🎨 Processing pixel art with algorithm...');
+
+      // CORRECTION: Utiliser directement l'algorithme sans créer de contexte
+      const processedImageData = pixelAlgorithmRef.current.apply(imageData, pixelSettings);
+
+      const processingTime = performance.now() - startTime;
+
+      const processedFrame = {
+        id: `frame_${Date.now()}`,
+        original: imageData,
+        processed: processedImageData,
+        frameNumber: 0,
+        processingTime,
+      };
+
+      setProcessedFrames([processedFrame]);
+      console.log(`✅ Pixel art processed in ${processingTime.toFixed(2)}ms`);
+
+      return processedFrame;
+    } catch (error) {
+      console.error('❌ Pixel processing error:', error);
+      return null;
+    }
+  }, [pixelSettings, setProcessedFrames]);
+
+  // Process complet : capture + pixel art
   const handleProcess = useCallback(async () => {
     if (!model || !modelViewerRef.current) {
       console.warn('⚠️ Missing model or model viewer');
       return;
     }
 
-    try {
-      console.log('🎨 Capturing frame from ModelViewer3D...');
+    setIsProcessing(true);
 
-      // Capturer l'image directement du ModelViewer3D
+    try {
+      console.log('📸 Capturing frame from 3D viewer...');
+
+      // Capturer l'image du ModelViewer3D
       const imageData = modelViewerRef.current.captureFrame();
       if (!imageData) {
         console.error('❌ Failed to capture frame');
         return;
       }
 
-      console.log('🖼️ Frame captured, processing...');
-      const processed = await processImage(imageData, pixelSettings);
+      console.log('✅ Frame captured, processing pixel art...');
 
-      if (processed) {
-        setProcessedFrames([processed]);
-        console.log('✅ Frame processed successfully');
-      }
+      // Traiter directement avec l'algorithme
+      processPixelArt(imageData);
+
     } catch (error) {
       console.error('❌ Processing error:', error);
+    } finally {
+      setIsProcessing(false);
     }
-  }, [model, processImage, pixelSettings, setProcessedFrames]);
+  }, [model, processPixelArt]);
 
   // Export spritesheet
   const handleExport = useCallback(async () => {
@@ -103,7 +138,7 @@ function AppContent() {
 
     const timeoutId = setTimeout(() => {
       handleProcess();
-    }, 800); // Délai pour laisser le temps au ModelViewer de se mettre à jour
+    }, 800);
 
     return () => clearTimeout(timeoutId);
   }, [model, pixelSettings.targetSize, pixelSettings.colorPalette, selectedPresetId]);
@@ -111,7 +146,6 @@ function AppContent() {
   // Process manuel sur changement de preset
   const handlePresetChange = useCallback((presetId: string) => {
     applyPreset(presetId);
-    // Le process se fera automatiquement via le useEffect ci-dessus
   }, [applyPreset]);
 
   return (
