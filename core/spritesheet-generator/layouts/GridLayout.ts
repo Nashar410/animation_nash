@@ -75,7 +75,7 @@ export class GridLayout implements ILayout {
     private calculateGridDimensions(
         frameCount: number,
         frameWidth: number,
-        frameHeight: number,
+        _frameHeight: number, // Prefixé avec _
         maxSize?: Size
     ): { columns: number; rows: number } {
         // Use provided dimensions if available

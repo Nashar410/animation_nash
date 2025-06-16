@@ -14,7 +14,7 @@ export interface LinearLayoutOptions {
 export class LinearLayout implements ILayout {
     constructor(private options: LinearLayoutOptions) {}
 
-    calculate(frames: ProcessedFrame[], maxSize?: Size): LayoutResult {
+    calculate(frames: ProcessedFrame[], _maxSize?: Size): LayoutResult {
         if (frames.length === 0) {
             return { positions: [], totalSize: { width: 0, height: 0 } };
         }

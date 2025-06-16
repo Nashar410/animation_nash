@@ -1,15 +1,18 @@
-// core/pixel-processor/algorithms/AlgorithmFactory.ts - Version corrigée
+// core/pixel-processor/algorithms/AlgorithmFactory.ts - Version finale corrigée
 import { IPixelAlgorithm } from '@shared/interfaces';
 import { PixelAlgorithm } from '@shared/types/pixelart';
 import { NearestNeighbor } from './NearestNeighbor';
 import { BilinearPixel } from './BilinearPixel';
 
 export class AlgorithmFactory {
-    // Correction: utiliser IPixelAlgorithm au lieu de class constructors spécifiques
-    private static algorithms: Map<PixelAlgorithm, new () => IPixelAlgorithm> = new Map([
-        ['nearest-neighbor', NearestNeighbor],
-        ['bilinear', BilinearPixel],
-    ] as const);
+    // Solution: Simplifier le type avec une interface plus générique
+    private static algorithms: Map<PixelAlgorithm, new () => IPixelAlgorithm> = new Map();
+
+    // Initialisation statique pour éviter les problèmes de types
+    static {
+        this.algorithms.set('nearest-neighbor', NearestNeighbor);
+        this.algorithms.set('bilinear', BilinearPixel);
+    }
 
     static create(algorithm: PixelAlgorithm): IPixelAlgorithm {
         const AlgorithmClass = this.algorithms.get(algorithm);
