@@ -1,4 +1,4 @@
-// src/App.tsx - Solution finale : un seul contexte WebGL
+// src/App.tsx - Version avec nouvel algorithme de pixel art
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { AppProvider, useAppContext } from '../ui/contexts/AppContext';
 import {
@@ -10,7 +10,7 @@ import {
 } from '@ui/components';
 import { useModelLoader } from "@ui/hooks/useModelLoader";
 import { useExporter } from "@ui/hooks/useExporter";
-import { NearestNeighbor } from '@core/pixel-processor/algorithms/NearestNeighbor';
+import { PixelArtAlgorithm } from '@core/pixel-processor/algorithms/PixelArtAlgorithm';
 import {
   Download,
   Settings,
@@ -54,8 +54,8 @@ function AppContent() {
     captureFrame: () => ImageData | null;
   } | null>(null);
 
-  // CORRECTION: Instance d'algorithme réutilisable (sans créer de contexte WebGL)
-  const pixelAlgorithmRef = useRef(new NearestNeighbor());
+  // AMÉLIORATION: Utiliser le nouvel algorithme professionnel
+  const pixelAlgorithmRef = useRef(new PixelArtAlgorithm());
 
   // Handle file upload
   const handleFileSelect = useCallback(async (file: File) => {
@@ -65,14 +65,14 @@ function AppContent() {
     }
   }, [loadModel, setModel]);
 
-  // CORRECTION: Process pixel art directement avec l'algorithme (sans WebGL)
+  // Process pixel art avec le nouvel algorithme
   const processPixelArt = useCallback((imageData: ImageData) => {
     const startTime = performance.now();
 
     try {
-      console.log('🎨 Processing pixel art with algorithm...');
+      console.log('🎨 Processing with professional pixel art algorithm...');
 
-      // CORRECTION: Utiliser directement l'algorithme sans créer de contexte
+      // Utiliser le nouvel algorithme professionnel
       const processedImageData = pixelAlgorithmRef.current.apply(imageData, pixelSettings);
 
       const processingTime = performance.now() - startTime;
@@ -86,7 +86,7 @@ function AppContent() {
       };
 
       setProcessedFrames([processedFrame]);
-      console.log(`✅ Pixel art processed in ${processingTime.toFixed(2)}ms`);
+      console.log(`✅ Professional pixel art processed in ${processingTime.toFixed(2)}ms`);
 
       return processedFrame;
     } catch (error) {
@@ -105,18 +105,18 @@ function AppContent() {
     setIsProcessing(true);
 
     try {
-      console.log('📸 Capturing frame from 3D viewer...');
+      console.log('📸 Starting high-quality capture and processing...');
 
-      // Capturer l'image du ModelViewer3D
+      // Capturer l'image du ModelViewer3D avec la nouvelle méthode améliorée
       const imageData = modelViewerRef.current.captureFrame();
       if (!imageData) {
         console.error('❌ Failed to capture frame');
         return;
       }
 
-      console.log('✅ Frame captured, processing pixel art...');
+      console.log('✅ High-quality frame captured, processing pixel art...');
 
-      // Traiter directement avec l'algorithme
+      // Traiter avec le nouvel algorithme professionnel
       processPixelArt(imageData);
 
     } catch (error) {
@@ -172,7 +172,7 @@ function AppContent() {
                     </h1>
                     <p className="text-purple-200 text-sm flex items-center">
                       <Sparkles className="w-4 h-4 mr-1" />
-                      Transform 3D models into retro game sprites
+                      Professional quality pixel art from 3D models
                     </p>
                   </div>
                 </div>
@@ -214,7 +214,7 @@ function AppContent() {
                   <div className="space-y-6">
                     <div className="inline-flex items-center px-4 py-2 bg-purple-500/20 border border-purple-300/30 rounded-full text-purple-200 text-sm">
                       <Zap className="w-4 h-4 mr-2" />
-                      Powered by Three.js & Advanced Algorithms
+                      Professional Pixel Art Algorithm - Blender Quality
                     </div>
 
                     <h2 className="text-5xl md:text-6xl font-bold text-white leading-tight">
@@ -226,7 +226,7 @@ function AppContent() {
 
                     <p className="text-xl text-purple-100 max-w-2xl mx-auto leading-relaxed">
                       Upload your 3D models and instantly convert them to beautiful pixel art
-                      with classic retro game aesthetics. Perfect for indie game developers!
+                      with professional-grade algorithms. Perfect for indie game developers!
                     </p>
                   </div>
 
@@ -234,25 +234,25 @@ function AppContent() {
                   <div className="grid md:grid-cols-3 gap-6 mb-12">
                     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300">
                       <Camera className="w-12 h-12 text-purple-400 mb-4 mx-auto" />
-                      <h3 className="text-lg font-semibold text-white mb-2">Game Presets</h3>
+                      <h3 className="text-lg font-semibold text-white mb-2">Smart Auto-Framing</h3>
                       <p className="text-purple-100 text-sm">
-                        Pokémon, Final Fantasy, Zelda-style camera angles ready to use
+                        Intelligent model centering and optimal camera positioning
                       </p>
                     </div>
 
                     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300">
                       <Palette className="w-12 h-12 text-pink-400 mb-4 mx-auto" />
-                      <h3 className="text-lg font-semibold text-white mb-2">Retro Palettes</h3>
+                      <h3 className="text-lg font-semibold text-white mb-2">Pro Algorithms</h3>
                       <p className="text-purple-100 text-sm">
-                        Game Boy, NES, PICO-8 color palettes for authentic retro vibes
+                        Advanced noise reduction and edge-preserving techniques
                       </p>
                     </div>
 
                     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300">
                       <Download className="w-12 h-12 text-blue-400 mb-4 mx-auto" />
-                      <h3 className="text-lg font-semibold text-white mb-2">Export Ready</h3>
+                      <h3 className="text-lg font-semibold text-white mb-2">Clean Output</h3>
                       <p className="text-purple-100 text-sm">
-                        PNG, WebP spritesheets with metadata for your game engine
+                        Artifact-free pixel art ready for your game engine
                       </p>
                     </div>
                   </div>
@@ -382,6 +382,11 @@ function AppContent() {
                             onCameraChange={setCamera}
                         />
                       </div>
+                      <div className="mt-4 text-center">
+                        <p className="text-xs text-purple-200">
+                          Drag to rotate • Scroll to zoom • Double-click to reset
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -399,6 +404,12 @@ function AppContent() {
                               scale={4}
                               showGrid={showGrid}
                           />
+                        </div>
+                      </div>
+                      <div className="mt-4 text-center">
+                        <div className="text-xs text-purple-200 space-y-1">
+                          <p>Resolution: {pixelSettings.targetSize.width} × {pixelSettings.targetSize.height}</p>
+                          <p>Algorithm: Professional Pixel Art (v2)</p>
                         </div>
                       </div>
                     </div>
@@ -444,6 +455,15 @@ function AppContent() {
                         </>
                     )}
                   </button>
+                </div>
+            )}
+
+            {/* Processing Info */}
+            {model && processedFrames.length > 0 && (
+                <div className="mt-6 text-center">
+                  <div className="inline-flex items-center px-4 py-2 bg-green-500/20 border border-green-300/30 rounded-full text-green-200 text-sm">
+                    ✅ Pixel art generated in {processedFrames[0].processingTime.toFixed(0)}ms
+                  </div>
                 </div>
             )}
           </main>

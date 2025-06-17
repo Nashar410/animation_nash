@@ -1,4 +1,4 @@
-// ui/components/viewers/ModelViewer3D/ModelViewer3D.tsx - Rollback avec améliorations ciblées
+// ui/components/viewers/ModelViewer3D/ModelViewer3D.tsx - Version avec capture haute qualité
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import * as THREE from 'three';
 import { Model3D, Camera } from '@shared/types';
@@ -37,51 +37,156 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
     } | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    // CORRECTION: Capture simple sans auto-cadrage perturbateur
+    // AMÉLIORATION: Capture haute qualité avec multi-sampling
     useImperativeHandle(ref, () => ({
         captureFrame: (): ImageData | null => {
-            if (!sceneRef.current) {
-                console.warn('❌ No scene available for capture');
+            if (!sceneRef.current || !sceneRef.current.currentModel) {
+                console.warn('❌ No scene or model available for capture');
                 return null;
             }
 
-            const { scene, camera: threeCamera, renderer } = sceneRef.current;
+            const { scene, camera: threeCamera, renderer, currentModel } = sceneRef.current;
 
             try {
-                // CORRECTION: Pas d'auto-cadrage, utiliser la position actuelle de la caméra
-                console.log('📸 Capturing frame with current camera position');
+                console.log('📸 High-quality capture starting...');
 
-                // Fond uniforme pour éviter les artefacts
+                // Sauvegarder l'état actuel
                 const originalBackground = scene.background;
-                scene.background = new THREE.Color(0x404040);
+                const originalShadows = renderer.shadowMap.enabled;
+                const originalToneMapping = renderer.toneMapping;
+                const originalExposure = renderer.toneMappingExposure;
 
-                // Render avec la position actuelle
+                // AMÉLIORATION 1: Configuration optimale pour la capture
+                scene.background = new THREE.Color(0x000000); // Fond noir pour éviter les artefacts
+                renderer.shadowMap.enabled = false; // Désactiver les ombres
+                renderer.toneMapping = THREE.NoToneMapping; // Pas de tone mapping
+                renderer.toneMappingExposure = 1.0;
+
+                // AMÉLIORATION 2: Auto-cadrage intelligent sur le modèle
+                const box = new THREE.Box3().setFromObject(currentModel);
+                const size = box.getSize(new THREE.Vector3());
+                const center = box.getCenter(new THREE.Vector3());
+
+                // Calculer la distance optimale pour cadrer le modèle
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const fov = threeCamera instanceof THREE.PerspectiveCamera ? threeCamera.fov : 50;
+                //const aspect = width / height;
+
+                // Distance pour que le modèle remplisse ~80% du cadre
+                const distance = (maxDim / 2) / Math.tan((fov * Math.PI / 180) / 2) * 1.5;
+
+                // Sauvegarder la position actuelle
+                const originalPosition = threeCamera.position.clone();
+                const originalTarget = sceneRef.current.controls ? sceneRef.current.controls.target.clone() : new THREE.Vector3();
+
+                // AMÉLIORATION 3: Positionner la caméra pour un cadrage optimal
+                if (threeCamera instanceof THREE.PerspectiveCamera) {
+                    // Vue légèrement en angle pour le pixel art (45° classique)
+                    const angle = Math.PI / 4; // 45 degrés
+                    const elevation = Math.PI / 6; // 30 degrés
+
+                    threeCamera.position.set(
+                        center.x + distance * Math.cos(angle) * Math.cos(elevation),
+                        center.y + distance * Math.sin(elevation),
+                        center.z + distance * Math.sin(angle) * Math.cos(elevation)
+                    );
+
+                    threeCamera.lookAt(center);
+                }
+
+                // AMÉLIORATION 4: Éclairage optimal pour pixel art
+                const tempLights: THREE.Light[] = [];
+
+                // Lumière ambiante forte pour éviter les zones sombres
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+                scene.add(ambientLight);
+                tempLights.push(ambientLight);
+
+                // Lumière directionnelle douce
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
+                directionalLight.position.set(5, 10, 5);
+                scene.add(directionalLight);
+                tempLights.push(directionalLight);
+
+                // AMÉLIORATION 5: Rendu multi-échantillonné
+                const samples = 4; // 4x4 super-sampling
+                const superWidth = width * samples;
+                const superHeight = height * samples;
+
+                // Créer un render target haute résolution
+                const renderTarget = new THREE.WebGLRenderTarget(superWidth, superHeight, {
+                    format: THREE.RGBAFormat,
+                    type: THREE.UnsignedByteType,
+                    minFilter: THREE.LinearFilter,
+                    magFilter: THREE.LinearFilter,
+                    generateMipmaps: false,
+                    stencilBuffer: false,
+                    depthBuffer: true,
+                    samples: 0 // Pas de MSAA, on fait notre propre super-sampling
+                });
+
+                // Render haute résolution
+                renderer.setRenderTarget(renderTarget);
+                renderer.setSize(superWidth, superHeight);
                 renderer.render(scene, threeCamera);
 
-                // Capture pixels
-                const gl = renderer.getContext();
-                const pixels = new Uint8Array(width * height * 4);
-                gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+                // Lire les pixels haute résolution
+                const pixelsHR = new Uint8Array(superWidth * superHeight * 4);
+                renderer.readRenderTargetPixels(renderTarget, 0, 0, superWidth, superHeight, pixelsHR);
 
-                // Restore background
-                scene.background = originalBackground;
-
-                // Flip vertical
+                // AMÉLIORATION 6: Downsampling intelligent avec anti-aliasing
                 const imageData = new ImageData(width, height);
+
                 for (let y = 0; y < height; y++) {
                     for (let x = 0; x < width; x++) {
-                        const srcIndex = (y * width + x) * 4;
-                        const dstIndex = ((height - y - 1) * width + x) * 4;
+                        let r = 0, g = 0, b = 0, a = 0;
 
-                        imageData.data[dstIndex] = pixels[srcIndex];
-                        imageData.data[dstIndex + 1] = pixels[srcIndex + 1];
-                        imageData.data[dstIndex + 2] = pixels[srcIndex + 2];
-                        imageData.data[dstIndex + 3] = pixels[srcIndex + 3];
+                        // Moyenner les pixels du bloc samples x samples
+                        for (let dy = 0; dy < samples; dy++) {
+                            for (let dx = 0; dx < samples; dx++) {
+                                const sx = x * samples + dx;
+                                const sy = y * samples + dy;
+                                const si = ((superHeight - 1 - sy) * superWidth + sx) * 4;
+
+                                r += pixelsHR[si];
+                                g += pixelsHR[si + 1];
+                                b += pixelsHR[si + 2];
+                                a += pixelsHR[si + 3];
+                            }
+                        }
+
+                        const count = samples * samples;
+                        const di = (y * width + x) * 4;
+
+                        imageData.data[di] = Math.round(r / count);
+                        imageData.data[di + 1] = Math.round(g / count);
+                        imageData.data[di + 2] = Math.round(b / count);
+                        imageData.data[di + 3] = Math.round(a / count);
                     }
                 }
 
-                console.log('✅ Frame captured successfully');
+                // Nettoyer
+                renderTarget.dispose();
+                tempLights.forEach(light => {
+                    scene.remove(light);
+                    light.dispose();
+                });
+
+                // Restaurer l'état
+                renderer.setRenderTarget(null);
+                renderer.setSize(width, height);
+                scene.background = originalBackground;
+                renderer.shadowMap.enabled = originalShadows;
+                renderer.toneMapping = originalToneMapping;
+                renderer.toneMappingExposure = originalExposure;
+                threeCamera.position.copy(originalPosition);
+                if (sceneRef.current.controls) {
+                    sceneRef.current.controls.target.copy(originalTarget);
+                }
+
+                console.log('✅ High-quality frame captured');
                 return imageData;
+
             } catch (error) {
                 console.error('❌ Error capturing frame:', error);
                 return null;
@@ -100,22 +205,25 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x1a1a1a);
 
-        // Camera - CORRECTION: Retour aux paramètres normaux
+        // Camera
         const aspect = width / height;
-        const threeCamera = new THREE.PerspectiveCamera(75, aspect, 0.01, 1000);
+        const threeCamera = new THREE.PerspectiveCamera(50, aspect, 0.01, 1000);
         threeCamera.position.set(10, 10, 10);
 
-        // Renderer - CORRECTION: Paramètres équilibrés
+        // Renderer avec paramètres optimisés
         const renderer = new THREE.WebGLRenderer({
-            antialias: true, // Retour à l'antialias pour une meilleure qualité
+            antialias: true,
             alpha: true,
-            preserveDrawingBuffer: true
+            preserveDrawingBuffer: true,
+            powerPreference: "high-performance"
         });
         renderer.setSize(width, height);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1;
         currentMount.appendChild(renderer.domElement);
 
         // Controls
@@ -124,9 +232,8 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
         controls.dampingFactor = 0.05;
         controls.minDistance = 0.1;
         controls.maxDistance = 100;
-        controls.enablePan = true;
 
-        // CORRECTION: Éclairage équilibré (ni trop fort, ni trop faible)
+        // Éclairage équilibré
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambientLight);
 
@@ -135,6 +242,12 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
         directionalLight.castShadow = true;
         directionalLight.shadow.mapSize.width = 2048;
         directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.camera.near = 0.1;
+        directionalLight.shadow.camera.far = 50;
+        directionalLight.shadow.camera.left = -10;
+        directionalLight.shadow.camera.right = 10;
+        directionalLight.shadow.camera.top = 10;
+        directionalLight.shadow.camera.bottom = -10;
         scene.add(directionalLight);
 
         const clock = new THREE.Clock();
@@ -143,13 +256,10 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
         // Animation loop
         const animate = () => {
             requestAnimationFrame(animate);
-
             const delta = clock.getDelta();
-
             if (sceneRef.current?.mixer) {
                 sceneRef.current.mixer.update(delta);
             }
-
             controls.update();
             renderer.render(scene, threeCamera);
         };
@@ -172,11 +282,9 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
 
         return () => {
             console.log('🧹 Disposing ModelViewer3D...');
-
             if (currentMount && renderer.domElement) {
                 currentMount.removeChild(renderer.domElement);
             }
-
             controls.dispose();
             renderer.dispose();
             sceneRef.current = null;
@@ -186,13 +294,9 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
     // Update camera when props change
     useEffect(() => {
         if (!sceneRef.current) return;
-
         const { camera: threeCamera } = sceneRef.current;
-
-        // CORRECTION: Mise à jour simple de la caméra sans perturbation
         threeCamera.position.set(camera.position.x, camera.position.y, camera.position.z);
         threeCamera.quaternion.set(camera.rotation.x, camera.rotation.y, camera.rotation.z, camera.rotation.w);
-
         if (threeCamera instanceof THREE.PerspectiveCamera) {
             threeCamera.fov = camera.fov;
             threeCamera.updateProjectionMatrix();
@@ -202,9 +306,7 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
     // Update helpers
     useEffect(() => {
         if (!sceneRef.current) return;
-
         const { scene } = sceneRef.current;
-
         const helpers = scene.children.filter(child => child.userData.isHelper);
         helpers.forEach(helper => scene.remove(helper));
 
@@ -219,7 +321,7 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
         }
     }, [showHelpers]);
 
-    // CORRECTION: Update model avec scaling raisonnable
+    // Update model
     useEffect(() => {
         if (!sceneRef.current || !model) return;
 
@@ -243,26 +345,19 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
             });
         }
 
-        // Dispose existing mixer
-        if (sceneRef.current.mixer) {
-            sceneRef.current.mixer.stopAllAction();
-            sceneRef.current.mixer = undefined;
-        }
-
         // Create model group
         const modelGroup = new THREE.Group();
         modelGroup.userData.isModel = true;
 
         // Create materials
         const materials = new Map<string, THREE.Material>();
-
         model.materials.forEach(mat => {
             const material = new THREE.MeshStandardMaterial({
                 color: new THREE.Color(mat.color.r / 255, mat.color.g / 255, mat.color.b / 255),
                 metalness: mat.metalness || 0.1,
                 roughness: mat.roughness || 0.8,
+                side: THREE.DoubleSide // Important pour certains modèles
             });
-
             materials.set(mat.id, material);
         });
 
@@ -307,31 +402,22 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
         });
 
         if (meshCount > 0) {
-            // CORRECTION: Centrage et scaling modéré (comme avant)
+            // Centrage et scaling
             const box = new THREE.Box3().setFromObject(modelGroup);
             const center = box.getCenter(new THREE.Vector3());
             const size = box.getSize(new THREE.Vector3());
 
-            // Centrer le modèle
             modelGroup.position.sub(center);
 
-            // CORRECTION: Scaling plus raisonnable (retour aux valeurs d'origine)
             const maxDimension = Math.max(size.x, size.y, size.z);
             if (maxDimension > 10) {
-                const scale = 8 / maxDimension; // Moins agressif
+                const scale = 8 / maxDimension;
                 modelGroup.scale.setScalar(scale);
                 console.log(`📏 Model scaled by: ${scale.toFixed(2)}`);
             }
 
             scene.add(modelGroup);
             sceneRef.current.currentModel = modelGroup;
-
-            // Setup animations si présentes
-            if (model.animations.length > 0) {
-                const mixer = new THREE.AnimationMixer(modelGroup);
-                sceneRef.current.mixer = mixer;
-                console.log(`🎬 Model loaded: ${meshCount} meshes, ${model.animations.length} animations`);
-            }
 
             console.log(`✅ Model loaded successfully`);
         }

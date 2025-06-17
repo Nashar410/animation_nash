@@ -1,4 +1,5 @@
 // core/pixel-processor/algorithms/index.ts
-export { AlgorithmFactory } from './AlgorithmFactory';
-export { NearestNeighbor } from './NearestNeighbor';
-export { BilinearPixel } from './BilinearPixel';
+export {AlgorithmFactory} from './AlgorithmFactory';
+export {NearestNeighbor} from './NearestNeighbor';
+export {BilinearPixel} from './BilinearPixel';
+export {PixelArtAlgorithm} from './PixelArtAlgorithm';
