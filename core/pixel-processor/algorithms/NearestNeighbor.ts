@@ -7,7 +7,6 @@ export class NearestNeighbor implements IPixelAlgorithm {
     name = 'nearest-neighbor' as const;
 
     apply(input: ImageData, settings: PixelSettings): ImageData {
-        console.log(`🔄 Processing ${input.width}x${input.height} → ${settings.targetSize.width}x${settings.targetSize.height}`);
 
         // CORRECTION 1: Pre-filtrage pour nettoyer l'image d'entrée
         const cleaned = this.cleanInput(input);
@@ -33,7 +32,6 @@ export class NearestNeighbor implements IPixelAlgorithm {
             result = this.adjustBrightnessContrast(result, settings.brightnessAdjust, settings.contrastBoost);
         }
 
-        console.log('✅ Pixel processing complete');
         return result;
     }
 
@@ -82,14 +80,14 @@ export class NearestNeighbor implements IPixelAlgorithm {
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = input.width;
         tempCanvas.height = input.height;
-        const tempCtx = tempCanvas.getContext('2d')!;
+        const tempCtx = tempCanvas.getContext('2d'); if (!tempCtx) return input;
         tempCtx.putImageData(input, 0, 0);
 
         // Canvas de sortie
         const outputCanvas = document.createElement('canvas');
         outputCanvas.width = targetWidth;
         outputCanvas.height = targetHeight;
-        const outputCtx = outputCanvas.getContext('2d')!;
+        const outputCtx = outputCanvas.getContext('2d'); if (!outputCtx) return input;
 
         // CORRECTION: Utiliser un algorithme de redimensionnement de qualité
         outputCtx.imageSmoothingEnabled = true;
@@ -115,7 +113,7 @@ export class NearestNeighbor implements IPixelAlgorithm {
                 const centerIdx = (y * input.width + x) * 4;
 
                 // Vérifier si ce pixel est très différent de ses voisins
-                let neighborSum = [0, 0, 0];
+                const neighborSum = [0, 0, 0];
                 let neighborCount = 0;
 
                 for (let dy = -1; dy <= 1; dy++) {

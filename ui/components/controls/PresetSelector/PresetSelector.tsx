@@ -9,7 +9,7 @@ interface PresetSelectorProps {
     onPresetSelect: (presetId: string) => void;
 }
 
-const presetIcons: Record<string, React.ComponentType<any>> = {
+const presetIcons: Record<string, React.ComponentType<{ className: string }>> = {
     'pokemon': Gamepad2,
     'final-fantasy': Sword,
     'chrono-trigger': Zap,

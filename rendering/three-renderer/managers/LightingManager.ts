@@ -1,4 +1,4 @@
-// rendering/three-renderer/managers/LightingManager.ts
+// rendering/three-renderer/managers/LightingManager.ts (Corrected)
 import * as THREE from 'three';
 import { Light as LightData } from '@shared/types';
 
@@ -10,8 +10,8 @@ export class LightingManager {
     }
 
     public setup(lightsData: LightData[], enableShadows: boolean): void {
-        // Remove existing lights
-        this.scene.children.filter(child => child.isLight).forEach(light => this.scene.remove(light));
+        // Remove existing lights using a type-safe check
+        this.scene.children.filter(child => child instanceof THREE.Light).forEach(light => this.scene.remove(light));
 
         lightsData.forEach(lightData => {
             let light: THREE.Light;

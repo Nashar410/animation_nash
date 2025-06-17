@@ -28,7 +28,7 @@ export function AnimationSelector({
             setSelectedAnimation(firstAnimation);
             onAnimationSelect(firstAnimation);
         }
-    }, [animations]);
+    }, [animations, selectedAnimation, onAnimationSelect]);
 
     const handleAnimationChange = (animationName: string) => {
         setSelectedAnimation(animationName);

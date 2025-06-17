@@ -1,3 +1,5 @@
-// rendering/three-renderer/index.ts
-export { ThreeRenderer } from './ThreeRenderer';
-export { SceneManager } from './SceneManager';
+// rendering/three-renderer/index.ts (Corrected)
+export * from './managers';
+export * from './HighQualityCapturer';
+export * from './ModelLoaderHelper';
+export * from './ThreeRenderer';

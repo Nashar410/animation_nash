@@ -107,7 +107,6 @@ export function PixelPreview({
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
         setZoom(prevZoom => {
             const newZoom = Math.max(0.1, Math.min(10, prevZoom * delta));
-            console.log(`🔍 Zoom: ${(newZoom * 100).toFixed(0)}%`);
             return newZoom;
         });
     }, []);
@@ -117,7 +116,6 @@ export function PixelPreview({
         e.preventDefault();
         setIsDragging(true);
         setLastMousePos({ x: e.clientX, y: e.clientY });
-        console.log('🖱️ Start dragging');
     }, []);
 
     const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -137,7 +135,6 @@ export function PixelPreview({
     const handleMouseUp = useCallback(() => {
         if (isDragging) {
             setIsDragging(false);
-            console.log('🖱️ Stop dragging');
         }
     }, [isDragging]);
 
@@ -145,7 +142,6 @@ export function PixelPreview({
     const resetView = useCallback(() => {
         setZoom(1);
         setPan({ x: 0, y: 0 });
-        console.log('🔄 View reset');
     }, []);
 
     // CORRECTION: Keyboard shortcuts

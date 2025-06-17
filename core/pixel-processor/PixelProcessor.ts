@@ -1,9 +1,9 @@
+import { ModelLoader } from '@core/model-loader/ModelLoader';
 // core/pixel-processor/PixelProcessor.ts
 import { IPixelProcessor, IPixelAlgorithm } from '@shared/interfaces';
 import { ProcessedFrame, PixelSettings, PixelAlgorithm } from '@shared/types/pixelart';
 import {PerformanceMonitor} from "@shared/utils/performance.ts";
 import {Logger} from "@shared/utils/logger.ts";
-import {generateId} from "@shared/utils/id.ts";
 
 export abstract class PixelProcessor implements IPixelProcessor {
     protected logger: Logger;
@@ -32,7 +32,7 @@ export abstract class PixelProcessor implements IPixelProcessor {
             const processingTime = this.performanceMonitor.measure('process', 'process-start');
 
             return {
-                id: generateId('frame'),
+                id: ModelLoader.generateId('frame'),
                 original: input,
                 processed,
                 frameNumber: 0,

@@ -14,7 +14,7 @@ export interface ModelViewerRef {
   getAnimations: () => string[];
 }
 
-export const useAppEngine = (modelViewerRef: RefObject<ModelViewerRef>) => {
+export const useAppEngine = (modelViewerRef: RefObject<ModelViewerRef | null>) => {
   const {
     model,
     setModel,
@@ -66,7 +66,6 @@ export const useAppEngine = (modelViewerRef: RefObject<ModelViewerRef>) => {
         processingTime,
       };
       setProcessedFrames([processedFrame]);
-      console.log(`✅ Pixel art processed in ${processingTime.toFixed(2)}ms`);
       return processedFrame;
     } catch (error) {
       console.error('❌ Pixel processing error:', error);

@@ -8,7 +8,7 @@ import { MainInterface } from '@ui/components/layout/MainInterface';
 
 function AppContent() {
   // Une référence pour pouvoir appeler les méthodes du ModelViewer depuis le hook
-  const modelViewerRef = useRef<ModelViewerRef>(null);
+  const modelViewerRef = useRef<ModelViewerRef | null>(null);
 
   // Le hook centralise toute la logique et l'état
   const engine = useAppEngine(modelViewerRef);

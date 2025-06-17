@@ -1,14 +1,20 @@
-// core/model-loader/ModelLoader.ts
+// core/model-loader/ModelLoader.ts (Corrected with static method)
 import { IModelLoader } from '@shared/interfaces';
 import { Model3D, ValidationResult } from '@shared/types/models';
-import {Logger} from "@shared/utils/logger.ts";
-import {ModelValidator} from "@shared/utils/validation.ts";
+import { Logger } from "@shared/utils/logger.ts";
+import { ModelValidator } from "@shared/utils/validation.ts";
 
 export abstract class ModelLoader implements IModelLoader {
     protected logger: Logger;
+    private static idCounter = 0;
 
     constructor(protected name: string) {
         this.logger = new Logger(`ModelLoader:${name}`);
+    }
+
+    // Méthode statique, appelable directement depuis la classe
+    public static generateId(prefix: string): string {
+        return `${prefix}_${Date.now()}_${ModelLoader.idCounter++}`;
     }
 
     abstract loadModel(file: File): Promise<Model3D>;

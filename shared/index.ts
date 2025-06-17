@@ -16,7 +16,6 @@ export * from './di/tokens';
 export * from './di/setup';
 
 export * from './utils/logger';
-export * from './utils/id';
 export * from './utils/math';
 export * from './utils/color';
 export * from './utils/validation';

@@ -23,14 +23,12 @@ export class PixelArtAlgorithm implements IPixelAlgorithm {
     }
 
     apply(input: ImageData, settings: PixelSettings): ImageData {
-        console.log(`🎨 Professional Pixel Art Processing Pipeline Started...`);
 
         const result = this.pipeline.reduce(
             (currentImage, step) => step.execute(currentImage, settings),
             input
         );
 
-        console.log('✅ Pixel art processing pipeline complete');
         return result;
     }
 

@@ -16,7 +16,6 @@ export class ModelViewerSceneManager {
     private clock: THREE.Clock;
     private currentModel?: THREE.Group;
     private animations: THREE.AnimationClip[] = [];
-    private currentAction?: THREE.AnimationAction;
     private mount: HTMLDivElement;
     private onCameraChange?: OnCameraChangeCallback;
     private animationFrameId: number = 0;
@@ -109,6 +108,11 @@ export class ModelViewerSceneManager {
         }
     }
 
+ 
+    public updateCallbacks(onCameraChange?: OnCameraChangeCallback): void {
+        this.onCameraChange = onCameraChange;
+    }
+
     public updateCamera(cameraData: Camera): void {
         this.camera.position.set(cameraData.position.x, cameraData.position.y, cameraData.position.z);
         this.camera.quaternion.set(cameraData.rotation.x, cameraData.rotation.y, cameraData.rotation.z, cameraData.rotation.w);
@@ -125,7 +129,7 @@ export class ModelViewerSceneManager {
         }
     }
 
-    public playAnimation(name: string): void { /* TODO */ }
+    public playAnimation(_name: string): void { /* TODO */ }
     public pauseAnimation(): void { /* TODO */ }
     public resetAnimation(): void { /* TODO */ }
     public getAnimations = (): string[] => this.animations.map(a => a.name);
