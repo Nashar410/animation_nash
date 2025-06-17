@@ -1,4 +1,4 @@
-// core/model-loader/GLBLoader.ts - Version finale corrigée
+// core/model-loader/GLBLoader.ts - Version améliorée pour textures et animations
 
 import * as THREE from 'three';
 import { ModelLoader } from './ModelLoader';
@@ -19,6 +19,7 @@ import { GLTFLoader, GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 export class GLBLoader extends ModelLoader {
     private loader: GLTFLoader;
+    private textureCache = new Map<string, string>();
 
     constructor() {
         super('GLB');
@@ -51,7 +52,6 @@ export class GLBLoader extends ModelLoader {
         }
     }
 
-    // CORRECTION: Utiliser l'interface GLTF officielle
     private loadGLTF(buffer: ArrayBuffer): Promise<GLTF> {
         return new Promise((resolve, reject) => {
             this.loader.parse(
@@ -63,55 +63,110 @@ export class GLBLoader extends ModelLoader {
         });
     }
 
-    // CORRECTION: Paramètre gltf typé comme GLTF
     private convertGLTFToModel(gltf: GLTF, _filename: string): Model3D {
         const modelId = generateId('model');
         const meshes: Mesh[] = [];
         const materials: Material[] = [];
         const animations: Animation[] = [];
         const textures = new Map<THREE.Texture, Texture>();
+        const materialMap = new Map<THREE.Material, string>();
 
-        // Extract textures - gltf.scene est maintenant correctement typé
+        // AMÉLIORATION: Extraire toutes les textures embedées
         gltf.scene.traverse((node: THREE.Object3D) => {
             if (node instanceof THREE.Mesh) {
-                const material = node.material as THREE.MeshStandardMaterial;
-                if (material.map && !textures.has(material.map)) {
-                    const texture: Texture = {
-                        id: generateId('texture'),
-                        url: material.map.source.data?.src || '',
-                        width: material.map.image?.width || 0,
-                        height: material.map.image?.height || 0,
-                    };
-                    textures.set(material.map, texture);
+                const processMaterial = (mat: THREE.Material) => {
+                    if (mat instanceof THREE.MeshStandardMaterial ||
+                        mat instanceof THREE.MeshBasicMaterial ||
+                        mat instanceof THREE.MeshPhysicalMaterial) {
+
+                        // Traiter la texture principale
+                        if (mat.map && !textures.has(mat.map)) {
+                            const textureId = generateId('texture');
+                            const textureData = this.extractTextureData(mat.map);
+
+                            if (textureData) {
+                                const texture: Texture = {
+                                    id: textureId,
+                                    url: textureData,
+                                    width: mat.map.image?.width || 512,
+                                    height: mat.map.image?.height || 512,
+                                };
+                                textures.set(mat.map, texture);
+                                console.log(`📸 Extracted embedded texture: ${texture.width}x${texture.height}`);
+                            }
+                        }
+
+                        // Traiter les autres textures (normal, roughness, etc.)
+                        ['normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap'].forEach(mapName => {
+                            const map = (mat as any)[mapName];
+                            if (map && !textures.has(map)) {
+                                const textureData = this.extractTextureData(map);
+                                if (textureData) {
+                                    const texture: Texture = {
+                                        id: generateId('texture'),
+                                        url: textureData,
+                                        width: map.image?.width || 512,
+                                        height: map.image?.height || 512,
+                                    };
+                                    textures.set(map, texture);
+                                }
+                            }
+                        });
+                    }
+                };
+
+                // Gérer les matériaux (single ou array)
+                if (Array.isArray(node.material)) {
+                    node.material.forEach(processMaterial);
+                } else {
+                    processMaterial(node.material);
                 }
             }
         });
 
-        // Extract meshes and materials
+        // Extraire les matériaux
+        const processedMaterials = new Set<THREE.Material>();
+
         gltf.scene.traverse((node: THREE.Object3D) => {
             if (node instanceof THREE.Mesh) {
-                const mesh = this.convertThreeMesh(node);
+                const processMaterial = (threeMat: THREE.Material) => {
+                    if (!processedMaterials.has(threeMat)) {
+                        processedMaterials.add(threeMat);
+
+                        const material = this.convertThreeMaterial(threeMat, textures);
+                        materials.push(material);
+                        materialMap.set(threeMat, material.id);
+                    }
+                };
+
+                if (Array.isArray(node.material)) {
+                    node.material.forEach(processMaterial);
+                } else {
+                    processMaterial(node.material);
+                }
+            }
+        });
+
+        // Extraire les meshes
+        gltf.scene.traverse((node: THREE.Object3D) => {
+            if (node instanceof THREE.Mesh) {
+                const mesh = this.convertThreeMesh(node, materialMap);
                 meshes.push(mesh);
-
-                const material = this.convertThreeMaterial(
-                    node.material as THREE.MeshStandardMaterial,
-                    textures
-                );
-                if (material && !materials.find(m => m.id === material.id)) {
-                    materials.push(material);
-                }
             }
         });
 
-        // Extract animations
+        // AMÉLIORATION: Extraire les animations depuis GLTF
         if (gltf.animations && gltf.animations.length > 0) {
+            console.log(`🎬 Found ${gltf.animations.length} animations in GLTF`);
+
             gltf.animations.forEach((clip: THREE.AnimationClip) => {
-                const animation = this.convertThreeAnimation(clip);
+                const animation = this.convertThreeAnimation(clip, gltf.scene);
                 animations.push(animation);
+                console.log(`✅ Converted animation: ${animation.name} (${animation.duration}s)`);
             });
         }
 
-        // Calculate bounds
+        // Calculer les bounds
         const bounds = this.calculateBounds(gltf.scene);
 
         return {
@@ -129,12 +184,57 @@ export class GLBLoader extends ModelLoader {
         };
     }
 
-    private convertThreeMesh(threeMesh: THREE.Mesh): Mesh {
+    private extractTextureData(texture: THREE.Texture): string | null {
+        if (!texture.image) return null;
+
+        try {
+            // Si c'est déjà une data URL
+            if (texture.image.src && texture.image.src.startsWith('data:')) {
+                return texture.image.src;
+            }
+
+            // Créer un canvas pour extraire les données
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return null;
+
+            canvas.width = texture.image.width || 512;
+            canvas.height = texture.image.height || 512;
+
+            if (texture.image instanceof HTMLCanvasElement) {
+                ctx.drawImage(texture.image, 0, 0);
+            } else if (texture.image instanceof HTMLImageElement) {
+                ctx.drawImage(texture.image, 0, 0);
+            } else if (texture.image instanceof ImageBitmap) {
+                ctx.drawImage(texture.image, 0, 0);
+            } else {
+                console.warn('Unknown texture image type');
+                return null;
+            }
+
+            // Convertir en data URL
+            return canvas.toDataURL('image/png');
+        } catch (error) {
+            console.error('Failed to extract texture data:', error);
+            return null;
+        }
+    }
+
+    private convertThreeMesh(threeMesh: THREE.Mesh, materialMap: Map<THREE.Material, string>): Mesh {
         const geometry = threeMesh.geometry;
         const positions = geometry.attributes.position.array as Float32Array;
         const normals = geometry.attributes.normal?.array as Float32Array || new Float32Array(positions.length);
         const uvs = geometry.attributes.uv?.array as Float32Array || new Float32Array((positions.length / 3) * 2);
         const indices = geometry.index?.array || this.generateIndices(positions.length / 3);
+
+        // Déterminer le material ID
+        let materialId: string | undefined;
+        if (Array.isArray(threeMesh.material)) {
+            // Pour les multi-matériaux, prendre le premier
+            materialId = materialMap.get(threeMesh.material[0]);
+        } else {
+            materialId = materialMap.get(threeMesh.material);
+        }
 
         return {
             id: generateId('mesh'),
@@ -145,36 +245,63 @@ export class GLBLoader extends ModelLoader {
             indices: indices instanceof Uint16Array || indices instanceof Uint32Array
                 ? indices
                 : new Uint32Array(indices),
-            // CORRECTION: Cast correct vers MeshStandardMaterial
-            materialId: (threeMesh.material as THREE.MeshStandardMaterial).uuid,
+            materialId,
         };
     }
 
     private convertThreeMaterial(
-        threeMaterial: THREE.MeshStandardMaterial,
+        threeMaterial: THREE.Material,
         textures: Map<THREE.Texture, Texture>
     ): Material {
-        return {
-            id: threeMaterial.uuid,
-            name: threeMaterial.name || 'Material',
-            color: {
+        let color = { r: 128, g: 128, b: 128, a: 255 };
+        let texture: Texture | undefined;
+        let metalness = 0;
+        let roughness = 1;
+        let opacity = 1;
+
+        if (threeMaterial instanceof THREE.MeshStandardMaterial ||
+            threeMaterial instanceof THREE.MeshPhysicalMaterial) {
+            color = {
                 r: threeMaterial.color.r * 255,
                 g: threeMaterial.color.g * 255,
                 b: threeMaterial.color.b * 255,
                 a: threeMaterial.opacity * 255,
-            },
-            texture: threeMaterial.map ? textures.get(threeMaterial.map) : undefined,
-            opacity: threeMaterial.opacity,
-            metalness: threeMaterial.metalness,
-            roughness: threeMaterial.roughness,
+            };
+            texture = threeMaterial.map ? textures.get(threeMaterial.map) : undefined;
+            metalness = threeMaterial.metalness;
+            roughness = threeMaterial.roughness;
+            opacity = threeMaterial.opacity;
+        } else if (threeMaterial instanceof THREE.MeshBasicMaterial) {
+            color = {
+                r: threeMaterial.color.r * 255,
+                g: threeMaterial.color.g * 255,
+                b: threeMaterial.color.b * 255,
+                a: threeMaterial.opacity * 255,
+            };
+            texture = threeMaterial.map ? textures.get(threeMaterial.map) : undefined;
+            opacity = threeMaterial.opacity;
+        }
+
+        return {
+            id: threeMaterial.uuid,
+            name: threeMaterial.name || 'Material',
+            color,
+            texture,
+            opacity,
+            metalness,
+            roughness,
         };
     }
 
-    private convertThreeAnimation(clip: THREE.AnimationClip): Animation {
+    private convertThreeAnimation(clip: THREE.AnimationClip, scene: THREE.Object3D): Animation {
         const channels: AnimationChannel[] = [];
 
         clip.tracks.forEach((track: THREE.KeyframeTrack) => {
-            const [targetId, property] = this.parseTrackName(track.name);
+            const [objectName, property] = this.parseTrackName(track.name);
+
+            // Trouver l'objet cible dans la scène
+            const target = scene.getObjectByName(objectName);
+            const targetId = target ? target.uuid : objectName;
 
             if (property === 'position' || property === 'rotation' || property === 'scale') {
                 const keyframes: AnimationKeyframe[] = [];
@@ -204,14 +331,14 @@ export class GLBLoader extends ModelLoader {
 
     private parseTrackName(name: string): [string, 'position' | 'rotation' | 'scale'] {
         const parts = name.split('.');
-        const targetId = parts[0];
+        const objectName = parts.slice(0, -1).join('.');
         const property = parts[parts.length - 1].toLowerCase();
 
-        if (property.includes('position')) return [targetId, 'position'];
-        if (property.includes('quaternion') || property.includes('rotation')) return [targetId, 'rotation'];
-        if (property.includes('scale')) return [targetId, 'scale'];
+        if (property.includes('position')) return [objectName, 'position'];
+        if (property.includes('quaternion') || property.includes('rotation')) return [objectName, 'rotation'];
+        if (property.includes('scale')) return [objectName, 'scale'];
 
-        return [targetId, 'position'];
+        return [objectName, 'position'];
     }
 
     private extractKeyframeValue(
@@ -241,7 +368,6 @@ export class GLBLoader extends ModelLoader {
         }
     }
 
-    // CORRECTION: Paramètre typé comme Group (pas Scene)
     private calculateBounds(sceneGroup: THREE.Group): BoundingBox {
         const box = new THREE.Box3().setFromObject(sceneGroup);
 
@@ -279,6 +405,6 @@ export class GLBLoader extends ModelLoader {
 
     dispose(): void {
         super.dispose();
-        // Three.js loader doesn't need explicit disposal
+        this.textureCache.clear();
     }
 }

@@ -5,3 +5,6 @@ export { FileUpload } from './controls/FileUpload/FileUpload';
 export { PresetSelector } from './controls/PresetSelector/PresetSelector';
 export { SettingsPanel } from './controls/SettingsPanel/SettingsPanel';
 export { Slider } from './controls/Slider/Slider';
+export { AnimationSelector } from './controls/AnimationSelector/AnimationSelector';
+
+

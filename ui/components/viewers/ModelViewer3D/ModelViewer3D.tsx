@@ -15,6 +15,10 @@ interface ModelViewer3DProps {
 
 export interface ModelViewer3DRef {
     captureFrame: () => ImageData | null;
+    playAnimation: (animationName: string) => void;
+    pauseAnimation: () => void;
+    resetAnimation: () => void;
+    getAnimations: () => string[];
 }
 
 export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
@@ -34,6 +38,8 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
         mixer?: THREE.AnimationMixer;
         clock: THREE.Clock;
         currentModel?: THREE.Group;
+        animations?: THREE.AnimationClip[];
+        currentAction?: THREE.AnimationAction;
     } | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -70,7 +76,7 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
                 // Calculer la distance optimale pour cadrer le modèle
                 const maxDim = Math.max(size.x, size.y, size.z);
                 const fov = threeCamera instanceof THREE.PerspectiveCamera ? threeCamera.fov : 50;
-                //const aspect = width / height;
+                const _aspect = width / height;
 
                 // Distance pour que le modèle remplisse ~80% du cadre
                 const distance = (maxDim / 2) / Math.tan((fov * Math.PI / 180) / 2) * 1.5;
@@ -191,6 +197,45 @@ export const ModelViewer3D = forwardRef<ModelViewer3DRef, ModelViewer3DProps>(({
                 console.error('❌ Error capturing frame:', error);
                 return null;
             }
+        },
+
+        playAnimation: (animationName: string): void => {
+            if (!sceneRef.current || !sceneRef.current.mixer || !sceneRef.current.animations) {
+                console.warn('No mixer or animations available');
+                return;
+            }
+
+            // Arrêter l'animation en cours
+            if (sceneRef.current.currentAction) {
+                sceneRef.current.currentAction.stop();
+            }
+
+            // Trouver et jouer la nouvelle animation
+            const clip = sceneRef.current.animations.find(clip => clip.name === animationName);
+            if (clip) {
+                sceneRef.current.currentAction = sceneRef.current.mixer.clipAction(clip);
+                sceneRef.current.currentAction.play();
+                console.log(`▶️ Playing animation: ${animationName}`);
+            }
+        },
+
+        pauseAnimation: (): void => {
+            if (sceneRef.current?.currentAction) {
+                sceneRef.current.currentAction.paused = !sceneRef.current.currentAction.paused;
+                console.log(`⏸️ Animation ${sceneRef.current.currentAction.paused ? 'paused' : 'resumed'}`);
+            }
+        },
+
+        resetAnimation: (): void => {
+            if (sceneRef.current?.currentAction) {
+                sceneRef.current.currentAction.reset();
+                console.log('🔄 Animation reset');
+            }
+        },
+
+        getAnimations: (): string[] => {
+            if (!sceneRef.current?.animations) return [];
+            return sceneRef.current.animations.map(clip => clip.name);
         }
     }), [width, height]);
 

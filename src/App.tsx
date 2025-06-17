@@ -8,6 +8,7 @@ import {
   PresetSelector,
   SettingsPanel,
 } from '@ui/components';
+import { AnimationSelector } from '@ui/components/controls/AnimationSelector/AnimationSelector';
 import { useModelLoader } from "@ui/hooks/useModelLoader";
 import { useExporter } from "@ui/hooks/useExporter";
 import { PixelArtAlgorithm } from '@core/pixel-processor/algorithms/PixelArtAlgorithm';
@@ -48,10 +49,17 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState<'model' | 'settings'>('model');
   const [showGrid, setShowGrid] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [currentAnimation, setCurrentAnimation] = useState<string | null>(null);
+  const [isAnimationPlaying, setIsAnimationPlaying] = useState(false);
+  const [availableAnimations, setAvailableAnimations] = useState<string[]>([]);
 
   // Référence vers le ModelViewer3D pour capturer ses frames
   const modelViewerRef = useRef<{
     captureFrame: () => ImageData | null;
+    playAnimation: (animationName: string) => void;
+    pauseAnimation: () => void;
+    resetAnimation: () => void;
+    getAnimations: () => string[];
   } | null>(null);
 
   // AMÉLIORATION: Utiliser le nouvel algorithme professionnel
@@ -62,6 +70,11 @@ function AppContent() {
     const loadedModel = await loadModel(file);
     if (loadedModel !== null) {
       setModel(loadedModel);
+
+      // Réinitialiser l'état des animations
+      setCurrentAnimation(null);
+      setIsAnimationPlaying(false);
+      setAvailableAnimations([]);
     }
   }, [loadModel, setModel]);
 
@@ -147,6 +160,39 @@ function AppContent() {
   const handlePresetChange = useCallback((presetId: string) => {
     applyPreset(presetId);
   }, [applyPreset]);
+
+  // Gestion des animations
+  const handleAnimationSelect = useCallback((animationName: string) => {
+    if (modelViewerRef.current) {
+      modelViewerRef.current.playAnimation(animationName);
+      setCurrentAnimation(animationName);
+      setIsAnimationPlaying(true);
+    }
+  }, []);
+
+  const handlePlayPause = useCallback(() => {
+    if (modelViewerRef.current) {
+      modelViewerRef.current.pauseAnimation();
+      setIsAnimationPlaying(!isAnimationPlaying);
+    }
+  }, [isAnimationPlaying]);
+
+  const handleAnimationReset = useCallback(() => {
+    if (modelViewerRef.current) {
+      modelViewerRef.current.resetAnimation();
+    }
+  }, []);
+
+  // Mettre à jour la liste des animations quand le modèle change
+  useEffect(() => {
+    if (model && modelViewerRef.current) {
+      setTimeout(() => {
+        const animations = modelViewerRef.current?.getAnimations() || [];
+        setAvailableAnimations(animations);
+        console.log(`📋 Available animations: ${animations.join(', ')}`);
+      }, 500); // Petit délai pour s'assurer que le modèle est chargé
+    }
+  }, [model]);
 
   return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-pink-900">
@@ -351,6 +397,20 @@ function AppContent() {
                                   ← Load different model
                                 </button>
                               </div>
+
+                              {/* Animation Selector */}
+                              {model.animations.length > 0 && (
+                                  <div className="mt-6">
+                                    <AnimationSelector
+                                        animations={availableAnimations}
+                                        currentAnimation={currentAnimation}
+                                        isPlaying={isAnimationPlaying}
+                                        onAnimationSelect={handleAnimationSelect}
+                                        onPlayPause={handlePlayPause}
+                                        onReset={handleAnimationReset}
+                                    />
+                                  </div>
+                              )}
                             </div>
                         ) : (
                             <SettingsPanel
