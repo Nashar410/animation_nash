@@ -31,4 +31,5 @@ export type PixelAlgorithm =
     | 'nearest-neighbor'
     | 'bilinear'
     | 'bicubic'
-    | 'lanczos';
+    | 'lanczos'
+    | 'pixel-art-pro'; // Ajout du nouvel algorithme

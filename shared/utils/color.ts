@@ -1,6 +1,6 @@
-
 // shared/utils/color.ts
 import { Color } from '../types/rendering';
+import { ColorPalette } from '../types/pixelart';
 
 export function rgbToHex(color: Color): string {
     const r = Math.round(color.r).toString(16).padStart(2, '0');
@@ -23,5 +23,27 @@ export function colorDistance(a: Color, b: Color): number {
     const dr = a.r - b.r;
     const dg = a.g - b.g;
     const db = a.b - b.b;
+    // Utiliser la formule CIE76 pour une meilleure perception des couleurs
     return Math.sqrt(dr * dr + dg * dg + db * db);
+}
+
+/**
+ * Trouve la couleur la plus proche dans une palette donnée.
+ * @param color La couleur à comparer.
+ * @param palette La palette de couleurs.
+ * @returns La couleur la plus proche de la palette.
+ */
+export function findClosestColor(color: Color, palette: ColorPalette): Color {
+    let closestColor = palette.colors[0];
+    let minDistance = Number.POSITIVE_INFINITY;
+
+    for (const paletteColor of palette.colors) {
+        const distance = colorDistance(color, paletteColor);
+        if (distance < minDistance) {
+            minDistance = distance;
+            closestColor = paletteColor;
+        }
+    }
+
+    return closestColor;
 }
